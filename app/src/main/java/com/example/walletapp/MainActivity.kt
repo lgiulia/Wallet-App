@@ -4,44 +4,32 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.walletapp.data.AppDatabase
+import com.example.walletapp.ui.DashboardScreen
 import com.example.walletapp.ui.theme.WalletAppTheme
+import com.example.walletapp.viewmodel.FinanceViewModel
+import com.example.walletapp.viewmodel.FinanceViewModelFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // 1. Inizializza il Database
+        val database = AppDatabase.getDatabase(this)
+
+        // 2. Prepara la Factory per costruire il ViewModel
+        val factory = FinanceViewModelFactory(database.financeDao())
+
         setContent {
             WalletAppTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                // 3. Crea l'istanza del ViewModel
+                val viewModel: FinanceViewModel = viewModel(factory = factory)
+
+                // 4. Mostra la nostra schermata passandogli il ViewModel
+                DashboardScreen(viewModel = viewModel)
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    WalletAppTheme {
-        Greeting("Android")
     }
 }
