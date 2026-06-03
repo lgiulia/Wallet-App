@@ -61,5 +61,6 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     ksp( libs.androidx.room.compiler)
 }
