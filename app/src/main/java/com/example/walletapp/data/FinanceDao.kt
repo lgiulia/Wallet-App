@@ -20,6 +20,9 @@ interface FinanceDao {
     @Query("SELECT * FROM transactions ORDER BY date DESC") // Selects all the transactions filtering from the most recent (descresent)
     fun getAllTransactions(): Flow<List<Transaction>>
 
+    @Update
+    suspend fun updateTransaction(transaction: Transaction)
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertCategory(category: Category): Long
 

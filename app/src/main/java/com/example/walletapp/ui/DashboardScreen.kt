@@ -1,5 +1,6 @@
 package com.example.walletapp.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -16,12 +17,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.walletapp.data.Account
+import com.example.walletapp.data.Category
 import com.example.walletapp.data.Transaction
 import com.example.walletapp.viewmodel.FinanceViewModel
 import java.text.SimpleDateFormat
@@ -29,25 +35,29 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun DashboardScreen(viewModel: FinanceViewModel) {
+fun DashboardScreen(
+    viewModel: FinanceViewModel,
+    onNavigateToDetail: (Long?) -> Unit
+) {
     val transactions by viewModel.allTransactions.collectAsState()
     val categories by viewModel.allCategories.collectAsState()
     val accounts by viewModel.allAccounts.collectAsState()
 
-    // Stati per i popup standard
     var showTransactionDialog by remember { mutableStateOf(false) }
     var showAccountDialog by remember { mutableStateOf(false) }
     var showAdjustDialog by remember { mutableStateOf(false) }
     var accountToAdjust by remember { mutableStateOf<Account?>(null) }
 
-    // NUOVI STATI: Per gestire le eliminazioni con la conferma
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var accountToDelete by remember { mutableStateOf<Account?>(null) }
 
     var showDeleteTransactionDialog by remember { mutableStateOf(false) }
     var transactionToDelete by remember { mutableStateOf<Transaction?>(null) }
 
-    // Calcolo dei saldi
+    var showEditTransactionDialog by remember { mutableStateOf(false) }
+    var transactionToEdit by remember { mutableStateOf<Transaction?>(null) }
+
+    // Calcolo dei saldi correnti per ciascun conto
     val accountBalances = accounts.associate { account ->
         val accountTransactions = transactions.filter { it.accountId == account.id }
         val netAmount = accountTransactions.sumOf { tx ->
@@ -78,9 +88,11 @@ fun DashboardScreen(viewModel: FinanceViewModel) {
                 .padding(paddingValues)
                 .padding(top = 16.dp, start = 16.dp, end = 16.dp)
         ) {
-            // --- HEADER ---
+            // --- HEADER: APP NAME & GLOBAL TOTAL ---
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onNavigateToDetail(null) },
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(text = "Wallet App", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
@@ -92,7 +104,7 @@ fun DashboardScreen(viewModel: FinanceViewModel) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- SECTION 1: ACCOUNTS CAROUSEL ---
+            // --- SECTION 1: ACCOUNTS CAROUSEL (LAZYROW) ---
             Text(text = "My Accounts", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -102,13 +114,14 @@ fun DashboardScreen(viewModel: FinanceViewModel) {
             ) {
                 items(accounts) { account ->
                     val currentBalance = accountBalances[account.id] ?: 0.0
+                    val accountTransactions = transactions.filter { it.accountId == account.id }
+
                     Card(
                         modifier = Modifier
-                            .width(160.dp)
-                            .height(110.dp)
-                            // Utilizziamo combinedClickable per catturare il clic prolungato sul conto
+                            .width(165.dp)
+                            .height(135.dp) // Altezza aumentata per ospitare la sparkline
                             .combinedClickable(
-                                onClick = { /* Clic normale, implementabile in futuro */ },
+                                onClick = { onNavigateToDetail(account.id) },
                                 onLongClick = {
                                     accountToDelete = account
                                     showDeleteAccountDialog = true
@@ -122,6 +135,7 @@ fun DashboardScreen(viewModel: FinanceViewModel) {
                                 .padding(12.dp),
                             verticalArrangement = Arrangement.SpaceBetween
                         ) {
+                            // Riga Superiore: Titolo e Modifica
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -140,17 +154,36 @@ fun DashboardScreen(viewModel: FinanceViewModel) {
                                     tint = Color.Gray
                                 )
                             }
-                            Text(text = String.format("€ %.2f", currentBalance), fontWeight = FontWeight.Bold, fontSize = 18.sp)
+
+                            // Riga Inferiore: Saldo Attuale
+                            Text(
+                                text = String.format("€ %.2f", currentBalance),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp
+                            )
+
+                            // --- IL MINI GRAFICO (SPARKLINE) ---
+                            AccountSparkline(
+                                transactions = accountTransactions,
+                                categories = categories,
+                                initialBalance = account.initialBalance,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(35.dp) // Dimensione compatta per stare dentro la card
+                                    .padding(vertical = 2.dp)
+                            )
+
                         }
                     }
                 }
 
+                // Bottone Add Account
                 item {
                     OutlinedCard(
                         onClick = { showAccountDialog = true },
                         modifier = Modifier
-                            .width(160.dp)
-                            .height(110.dp),
+                            .width(165.dp)
+                            .height(135.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Column(
@@ -172,10 +205,8 @@ fun DashboardScreen(viewModel: FinanceViewModel) {
             Text(text = "Income/Outcome List", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Creiamo una lista "visiva" che esclude gli aggiustamenti automatici
             val visibleTransactions = transactions.filter { it.title != "Balance Adjustment" }
 
-            // Usiamo visibleTransactions invece di transactions per disegnare la lista
             if (visibleTransactions.isEmpty()) {
                 Box(modifier = Modifier.weight(1.0f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Text(text = "No transactions yet.", color = Color.Gray)
@@ -197,7 +228,10 @@ fun DashboardScreen(viewModel: FinanceViewModel) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .combinedClickable(
-                                    onClick = { /* Clic normale */ },
+                                    onClick = {
+                                        transactionToEdit = transaction
+                                        showEditTransactionDialog = true
+                                    },
                                     onLongClick = {
                                         transactionToDelete = transaction
                                         showDeleteTransactionDialog = true
@@ -233,7 +267,7 @@ fun DashboardScreen(viewModel: FinanceViewModel) {
         }
     }
 
-    // --- DIALOGS DI CREAZIONE E MODIFICA (Invariati) ---
+    // --- POPUPS & DIALOGS (Invariati per preservare le funzionalità) ---
     if (showAccountDialog) {
         var accountName by remember { mutableStateOf("") }
         var initBalanceStr by remember { mutableStateOf("") }
@@ -334,7 +368,6 @@ fun DashboardScreen(viewModel: FinanceViewModel) {
         }
     }
 
-    // --- CONFERMA ELIMINAZIONE CONTO ---
     if (showDeleteAccountDialog && accountToDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteAccountDialog = false; accountToDelete = null },
@@ -347,16 +380,13 @@ fun DashboardScreen(viewModel: FinanceViewModel) {
                         showDeleteAccountDialog = false
                         accountToDelete = null
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error) // Rosso per evidenziare il pericolo
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) { Text("Delete") }
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteAccountDialog = false; accountToDelete = null }) { Text("Cancel") }
-            }
+            dismissButton = { TextButton(onClick = { showDeleteAccountDialog = false; accountToDelete = null }) { Text("Cancel") } }
         )
     }
 
-    // --- CONFERMA ELIMINAZIONE TRANSAZIONE ---
     if (showDeleteTransactionDialog && transactionToDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteTransactionDialog = false; transactionToDelete = null },
@@ -372,9 +402,151 @@ fun DashboardScreen(viewModel: FinanceViewModel) {
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) { Text("Delete") }
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteTransactionDialog = false; transactionToDelete = null }) { Text("Cancel") }
-            }
+            dismissButton = { TextButton(onClick = { showDeleteTransactionDialog = false; transactionToDelete = null }) { Text("Cancel") } }
         )
+    }
+
+    // --- POPUP: MODIFICA TRANSAZIONE ESISTENTE ---
+    if (showEditTransactionDialog && transactionToEdit != null) {
+        val tx = transactionToEdit!!
+        val cat = categories.find { it.id == tx.categoryId }
+
+        var editTitle by remember { mutableStateOf(tx.title) }
+        var editAmountStr by remember { mutableStateOf(tx.amount.toString()) }
+        var editIsExpense by remember { mutableStateOf(cat?.isExpense ?: true) }
+
+        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        var editDateStr by remember { mutableStateOf(sdf.format(Date(tx.date))) }
+
+        var editSelectedAccount by remember {
+            mutableStateOf(accounts.find { it.id == tx.accountId } ?: accounts.first())
+        }
+        var expandedEditDropdown by remember { mutableStateOf(false) }
+
+        AlertDialog(
+            onDismissRequest = { showEditTransactionDialog = false; transactionToEdit = null },
+            title = { Text("Edit Transaction") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Selezione del conto (solo se ci sono conti disponibili)
+                    if (accounts.isNotEmpty()) {
+                        ExposedDropdownMenuBox(expanded = expandedEditDropdown, onExpandedChange = { expandedEditDropdown = !expandedEditDropdown }) {
+                            OutlinedTextField(
+                                value = editSelectedAccount.name, onValueChange = {}, readOnly = true, label = { Text("Account") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedEditDropdown) }, modifier = Modifier.menuAnchor().fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(expanded = expandedEditDropdown, onDismissRequest = { expandedEditDropdown = false }) {
+                                accounts.forEach { account ->
+                                    DropdownMenuItem(text = { Text(account.name) }, onClick = { editSelectedAccount = account; expandedEditDropdown = false })
+                                }
+                            }
+                        }
+                    }
+                    OutlinedTextField(value = editTitle, onValueChange = { editTitle = it }, label = { Text("Title") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = editAmountStr, onValueChange = { editAmountStr = it }, label = { Text("Amount (€)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = editDateStr, onValueChange = { editDateStr = it }, label = { Text("Date (dd/MM/yyyy)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                        Text(text = if (editIsExpense) "🔴 Expense" else "🟢 Income")
+                        Switch(checked = editIsExpense, onCheckedChange = { editIsExpense = it })
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val amount = editAmountStr.replace(",", ".").toDoubleOrNull()
+                    if (amount != null && editTitle.isNotBlank()) {
+                        viewModel.updateExistingTransaction(
+                            transaction = tx,
+                            newTitle = editTitle,
+                            newAmount = amount,
+                            isExpense = editIsExpense,
+                            newAccountId = editSelectedAccount.id,
+                            newDateString = editDateStr
+                        )
+                        showEditTransactionDialog = false
+                        transactionToEdit = null
+                    }
+                }) { Text("Update") }
+            },
+            dismissButton = { TextButton(onClick = { showEditTransactionDialog = false; transactionToEdit = null }) { Text("Cancel") } }
+        )
+    }
+}
+
+// --- COMPONENTE SPARKLINE: MINI GRAFICO A CURVA FLUIDA SENZA PUNTI ---
+@Composable
+fun AccountSparkline(transactions: List<Transaction>, categories: List<Category>, initialBalance: Double, modifier: Modifier = Modifier) {
+    val sortedTx = transactions.filter { it.title != "Balance Adjustment" }.sortedBy { it.date }
+
+    var currentRunningBalance = initialBalance
+    val balancePoints = mutableListOf<Double>()
+    balancePoints.add(currentRunningBalance)
+
+    for (tx in sortedTx) {
+        val cat = categories.find { it.id == tx.categoryId }
+        if (cat?.isExpense == true) {
+            currentRunningBalance -= tx.amount
+        } else {
+            currentRunningBalance += tx.amount
+        }
+        balancePoints.add(currentRunningBalance)
+    }
+
+    // Prendiamo gli ultimi 6 punti storici per mantenere la linea leggibile ma reattiva
+    val graphData = balancePoints.takeLast(6)
+    val lineColor = MaterialTheme.colorScheme.primary
+
+    Canvas(modifier = modifier) {
+        // Disegnamo la curva solo se abbiamo almeno due punti distinti, altrimenti facciamo una linea piatta
+        if (graphData.size >= 2) {
+            val maxVal = graphData.maxOrNull() ?: 0.0
+            val minVal = graphData.minOrNull() ?: 0.0
+            val deltaY = if (maxVal == minVal) 1.0 else (maxVal - minVal) * 1.2
+
+            val spaceX = size.width / (graphData.size - 1)
+            val path = Path()
+            val coordinates = mutableListOf<Offset>()
+
+            graphData.forEachIndexed { index, balance ->
+                val x = index * spaceX
+                val y = size.height - (((balance - minVal) / deltaY) * size.height).toFloat()
+                coordinates.add(Offset(x, y))
+            }
+
+            val firstPoint = coordinates.first()
+            path.moveTo(firstPoint.x, firstPoint.y)
+
+            for (i in 0 until coordinates.size - 1) {
+                val p1 = coordinates[i]
+                val p2 = coordinates[i + 1]
+
+                // Calcolo dell'interpolazione cubica per ammorbidire la linea
+                val controlPoint1 = Offset((p1.x + p2.x) / 2f, p1.y)
+                val controlPoint2 = Offset((p1.x + p2.x) / 2f, p2.y)
+
+                path.cubicTo(
+                    controlPoint1.x, controlPoint1.y,
+                    controlPoint2.x, controlPoint2.y,
+                    p2.x, p2.y
+                )
+            }
+
+            drawPath(
+                path = path,
+                color = lineColor.copy(alpha = 0.7f), // Un po' più opaco per integrarsi elegantemente
+                style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+            )
+        } else {
+            // Se il conto è appena nato o non ha transazioni, tracciamo una linea retta a metà altezza
+            val midY = size.height / 2f
+            drawLine(
+                color = lineColor.copy(alpha = 0.3f),
+                start = Offset(0f, midY),
+                end = Offset(size.width, midY),
+                strokeWidth = 2.dp.toPx(),
+                cap = StrokeCap.Round
+            )
+        }
     }
 }
