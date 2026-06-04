@@ -16,18 +16,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // 1. Inizializza il Database
         val database = AppDatabase.getDatabase(this)
-
-        // 2. Prepara la Factory per costruire il ViewModel
         val factory = FinanceViewModelFactory(database.financeDao())
 
         setContent {
             WalletAppTheme {
-                // 3. Crea l'istanza del ViewModel
                 val viewModel: FinanceViewModel = viewModel(factory = factory)
-
-                // 4. Mostra la nostra schermata passandogli il ViewModel
                 DashboardScreen(viewModel = viewModel)
             }
         }
