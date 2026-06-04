@@ -242,9 +242,11 @@ fun AccountDetailScreen(
 
     // --- DIALOGS ---
     if (showTransactionDialog && accounts.isNotEmpty()) {
-        var title by remember { mutableStateOf("") }
+        var categoryName by remember { mutableStateOf("") }
         var amountString by remember { mutableStateOf("") }
         var isExpense by remember { mutableStateOf(true) }
+        var expandedCategoryDropdown by remember { mutableStateOf(false) }
+
         var selectedAccount by remember { mutableStateOf(currentAccount ?: accounts.first()) }
         var expandedDropdown by remember { mutableStateOf(false) }
 
@@ -253,32 +255,55 @@ fun AccountDetailScreen(
             title = { Text("New Transaction") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (accountId == null) {
-                        ExposedDropdownMenuBox(expanded = expandedDropdown, onExpandedChange = { expandedDropdown = !expandedDropdown }) {
-                            OutlinedTextField(
-                                value = selectedAccount.name, onValueChange = {}, readOnly = true, label = { Text("Select Account") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDropdown) }, modifier = Modifier.menuAnchor().fillMaxWidth()
-                            )
-                            ExposedDropdownMenu(expanded = expandedDropdown, onDismissRequest = { expandedDropdown = false }) {
-                                accounts.forEach { account ->
-                                    DropdownMenuItem(text = { Text(account.name) }, onClick = { selectedAccount = account; expandedDropdown = false })
+                    // Selezione Conto
+                    ExposedDropdownMenuBox(expanded = expandedDropdown, onExpandedChange = { expandedDropdown = !expandedDropdown }) {
+                        OutlinedTextField(
+                            value = selectedAccount.name, onValueChange = {}, readOnly = true, label = { Text("Select Account") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDropdown) }, modifier = Modifier.menuAnchor().fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(expanded = expandedDropdown, onDismissRequest = { expandedDropdown = false }) {
+                            accounts.forEach { account ->
+                                DropdownMenuItem(text = { Text(account.name) }, onClick = { selectedAccount = account; expandedDropdown = false })
+                            }
+                        }
+                    }
+
+                    // Entrata o Uscita (Lo mettiamo prima così filtra le categorie sotto)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                        Text(text = if (isExpense) "🔴 Expense" else "🟢 Income", fontWeight = FontWeight.Medium)
+                        Switch(checked = isExpense, onCheckedChange = { isExpense = it; categoryName = "" }) // Resetta il nome se cambi tipo
+                    }
+
+                    // Selezione o Scrittura Categoria
+                    val availableCategories = categories.filter { it.isExpense == isExpense && it.name != "Balance Adjustment" }
+                    ExposedDropdownMenuBox(expanded = expandedCategoryDropdown, onExpandedChange = { expandedCategoryDropdown = !expandedCategoryDropdown }) {
+                        OutlinedTextField(
+                            value = categoryName,
+                            onValueChange = { categoryName = it; expandedCategoryDropdown = true },
+                            label = { Text("Category (e.g. Groceries)") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategoryDropdown) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            singleLine = true
+                        )
+                        val filteredCats = availableCategories.filter { it.name.contains(categoryName, ignoreCase = true) }
+                        if (filteredCats.isNotEmpty() && expandedCategoryDropdown) {
+                            ExposedDropdownMenu(expanded = expandedCategoryDropdown, onDismissRequest = { expandedCategoryDropdown = false }) {
+                                filteredCats.forEach { cat ->
+                                    DropdownMenuItem(text = { Text(cat.name) }, onClick = { categoryName = cat.name; expandedCategoryDropdown = false })
                                 }
                             }
                         }
                     }
-                    OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+
+                    // Importo
                     OutlinedTextField(value = amountString, onValueChange = { amountString = it }, label = { Text("Amount (€)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                        Text(text = if (isExpense) "🔴 Expense" else "🟢 Income")
-                        Switch(checked = isExpense, onCheckedChange = { isExpense = it })
-                    }
                 }
             },
             confirmButton = {
                 Button(onClick = {
                     val amount = amountString.replace(",", ".").toDoubleOrNull()
-                    if (amount != null && title.isNotBlank()) {
-                        viewModel.saveQuickTransaction(title, amount, isExpense, selectedAccount.id)
+                    if (amount != null && categoryName.isNotBlank()) {
+                        viewModel.saveQuickTransaction(categoryName, amount, isExpense, selectedAccount.id)
                         showTransactionDialog = false
                     }
                 }) { Text("Save") }
@@ -333,16 +358,15 @@ fun AccountDetailScreen(
         val tx = transactionToEdit!!
         val cat = categories.find { it.id == tx.categoryId }
 
-        var editTitle by remember { mutableStateOf(tx.title) }
+        var editCategoryName by remember { mutableStateOf(tx.title) }
         var editAmountStr by remember { mutableStateOf(tx.amount.toString()) }
         var editIsExpense by remember { mutableStateOf(cat?.isExpense ?: true) }
+        var expandedEditCategoryDropdown by remember { mutableStateOf(false) }
 
         val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
         var editDateStr by remember { mutableStateOf(sdf.format(Date(tx.date))) }
 
-        var editSelectedAccount by remember {
-            mutableStateOf(accounts.find { it.id == tx.accountId } ?: accounts.first())
-        }
+        var editSelectedAccount by remember { mutableStateOf(accounts.find { it.id == tx.accountId } ?: accounts.first()) }
         var expandedEditDropdown by remember { mutableStateOf(false) }
 
         AlertDialog(
@@ -350,7 +374,6 @@ fun AccountDetailScreen(
             title = { Text("Edit Transaction") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Selezione del conto (solo se ci sono conti disponibili)
                     if (accounts.isNotEmpty()) {
                         ExposedDropdownMenuBox(expanded = expandedEditDropdown, onExpandedChange = { expandedEditDropdown = !expandedEditDropdown }) {
                             OutlinedTextField(
@@ -364,23 +387,43 @@ fun AccountDetailScreen(
                             }
                         }
                     }
-                    OutlinedTextField(value = editTitle, onValueChange = { editTitle = it }, label = { Text("Title") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = editAmountStr, onValueChange = { editAmountStr = it }, label = { Text("Amount (€)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = editDateStr, onValueChange = { editDateStr = it }, label = { Text("Date (dd/MM/yyyy)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
 
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                        Text(text = if (editIsExpense) "🔴 Expense" else "🟢 Income")
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                        Text(text = if (editIsExpense) "🔴 Expense" else "🟢 Income", fontWeight = FontWeight.Medium)
                         Switch(checked = editIsExpense, onCheckedChange = { editIsExpense = it })
                     }
+
+                    val availableCategories = categories.filter { it.isExpense == editIsExpense && it.name != "Balance Adjustment" }
+                    ExposedDropdownMenuBox(expanded = expandedEditCategoryDropdown, onExpandedChange = { expandedEditCategoryDropdown = !expandedEditCategoryDropdown }) {
+                        OutlinedTextField(
+                            value = editCategoryName,
+                            onValueChange = { editCategoryName = it; expandedEditCategoryDropdown = true },
+                            label = { Text("Category") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedEditCategoryDropdown) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            singleLine = true
+                        )
+                        val filteredCats = availableCategories.filter { it.name.contains(editCategoryName, ignoreCase = true) }
+                        if (filteredCats.isNotEmpty() && expandedEditCategoryDropdown) {
+                            ExposedDropdownMenu(expanded = expandedEditCategoryDropdown, onDismissRequest = { expandedEditCategoryDropdown = false }) {
+                                filteredCats.forEach { c ->
+                                    DropdownMenuItem(text = { Text(c.name) }, onClick = { editCategoryName = c.name; expandedEditCategoryDropdown = false })
+                                }
+                            }
+                        }
+                    }
+
+                    OutlinedTextField(value = editAmountStr, onValueChange = { editAmountStr = it }, label = { Text("Amount (€)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = editDateStr, onValueChange = { editDateStr = it }, label = { Text("Date (dd/MM/yyyy)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
             },
             confirmButton = {
                 Button(onClick = {
                     val amount = editAmountStr.replace(",", ".").toDoubleOrNull()
-                    if (amount != null && editTitle.isNotBlank()) {
+                    if (amount != null && editCategoryName.isNotBlank()) {
                         viewModel.updateExistingTransaction(
                             transaction = tx,
-                            newTitle = editTitle,
+                            categoryName = editCategoryName,
                             newAmount = amount,
                             isExpense = editIsExpense,
                             newAccountId = editSelectedAccount.id,

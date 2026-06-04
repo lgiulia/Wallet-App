@@ -45,7 +45,6 @@ fun DashboardScreen(
 
     var showTransactionDialog by remember { mutableStateOf(false) }
     var showAccountDialog by remember { mutableStateOf(false) }
-    var showAdjustDialog by remember { mutableStateOf(false) }
     var accountToAdjust by remember { mutableStateOf<Account?>(null) }
 
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
@@ -119,60 +118,50 @@ fun DashboardScreen(
                     Card(
                         modifier = Modifier
                             .width(165.dp)
-                            .height(135.dp) // Altezza aumentata per ospitare la sparkline
-                            .combinedClickable(
-                                onClick = { onNavigateToDetail(account.id) },
-                                onLongClick = {
-                                    accountToDelete = account
-                                    showDeleteAccountDialog = true
-                                }
-                            ),
+                            .height(135.dp),
                         elevation = CardDefaults.cardElevation(2.dp)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            // Riga Superiore: Titolo e Modifica
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                        // Il Box ci permette di lavorare a livelli sovrapposti
+                        Box(modifier = Modifier.fillMaxSize()) {
+
+                            // LIVELLO 1 (SOTTO): L'area sensibile per il click/long-click della pagina
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .combinedClickable(
+                                        onClick = { onNavigateToDetail(account.id) },
+                                        onLongClick = {
+                                            accountToDelete = account
+                                            showDeleteAccountDialog = true
+                                        }
+                                    )
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(text = account.name, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = "Adjust",
+                                // Titolo spostato un po' a sinistra per non accavallarsi alla matita
+                                Text(
+                                    text = account.name,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.padding(end = 24.dp)
+                                )
+
+                                Text(
+                                    text = String.format("€ %.2f", currentBalance),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 20.sp
+                                )
+
+                                AccountSparkline(
+                                    transactions = accountTransactions,
+                                    categories = categories,
+                                    initialBalance = account.initialBalance,
                                     modifier = Modifier
-                                        .size(16.dp)
-                                        .clickable {
-                                            accountToAdjust = account
-                                            showAdjustDialog = true
-                                        },
-                                    tint = Color.Gray
+                                        .fillMaxWidth()
+                                        .height(35.dp)
+                                        .padding(vertical = 2.dp)
                                 )
                             }
-
-                            // Riga Inferiore: Saldo Attuale
-                            Text(
-                                text = String.format("€ %.2f", currentBalance),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp
-                            )
-
-                            // --- IL MINI GRAFICO (SPARKLINE) ---
-                            AccountSparkline(
-                                transactions = accountTransactions,
-                                categories = categories,
-                                initialBalance = account.initialBalance,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(35.dp) // Dimensione compatta per stare dentro la card
-                                    .padding(vertical = 2.dp)
-                            )
-
                         }
                     }
                 }
@@ -295,9 +284,11 @@ fun DashboardScreen(
     }
 
     if (showTransactionDialog && accounts.isNotEmpty()) {
-        var title by remember { mutableStateOf("") }
+        var categoryName by remember { mutableStateOf("") }
         var amountString by remember { mutableStateOf("") }
         var isExpense by remember { mutableStateOf(true) }
+        var expandedCategoryDropdown by remember { mutableStateOf(false) }
+
         var selectedAccount by remember { mutableStateOf(accounts.first()) }
         var expandedDropdown by remember { mutableStateOf(false) }
 
@@ -306,6 +297,7 @@ fun DashboardScreen(
             title = { Text("New Transaction") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Selezione Conto
                     ExposedDropdownMenuBox(expanded = expandedDropdown, onExpandedChange = { expandedDropdown = !expandedDropdown }) {
                         OutlinedTextField(
                             value = selectedAccount.name, onValueChange = {}, readOnly = true, label = { Text("Select Account") },
@@ -317,55 +309,49 @@ fun DashboardScreen(
                             }
                         }
                     }
-                    OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = amountString, onValueChange = { amountString = it }, label = { Text("Amount (€)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                        Text(text = if (isExpense) "🔴 Expense" else "🟢 Income")
-                        Switch(checked = isExpense, onCheckedChange = { isExpense = it })
+
+                    // Entrata o Uscita
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                        Text(text = if (isExpense) "🔴 Expense" else "🟢 Income", fontWeight = FontWeight.Medium)
+                        Switch(checked = isExpense, onCheckedChange = { isExpense = it; categoryName = "" }) // Resetta il nome se cambi tipo
                     }
+
+                    // Selezione o Scrittura Categoria
+                    val availableCategories = categories.filter { it.isExpense == isExpense && it.name != "Balance Adjustment" }
+                    ExposedDropdownMenuBox(expanded = expandedCategoryDropdown, onExpandedChange = { expandedCategoryDropdown = !expandedCategoryDropdown }) {
+                        OutlinedTextField(
+                            value = categoryName,
+                            onValueChange = { categoryName = it; expandedCategoryDropdown = true },
+                            label = { Text("Category (e.g. Groceries)") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategoryDropdown) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            singleLine = true
+                        )
+                        val filteredCats = availableCategories.filter { it.name.contains(categoryName, ignoreCase = true) }
+                        if (filteredCats.isNotEmpty() && expandedCategoryDropdown) {
+                            ExposedDropdownMenu(expanded = expandedCategoryDropdown, onDismissRequest = { expandedCategoryDropdown = false }) {
+                                filteredCats.forEach { cat ->
+                                    DropdownMenuItem(text = { Text(cat.name) }, onClick = { categoryName = cat.name; expandedCategoryDropdown = false })
+                                }
+                            }
+                        }
+                    }
+
+                    // Importo
+                    OutlinedTextField(value = amountString, onValueChange = { amountString = it }, label = { Text("Amount (€)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
             },
             confirmButton = {
                 Button(onClick = {
                     val amount = amountString.replace(",", ".").toDoubleOrNull()
-                    if (amount != null && title.isNotBlank()) {
-                        viewModel.saveQuickTransaction(title, amount, isExpense, selectedAccount.id)
+                    if (amount != null && categoryName.isNotBlank()) {
+                        viewModel.saveQuickTransaction(categoryName, amount, isExpense, selectedAccount.id)
                         showTransactionDialog = false
                     }
                 }) { Text("Save") }
             },
             dismissButton = { TextButton(onClick = { showTransactionDialog = false }) { Text("Cancel") } }
         )
-    }
-
-    accountToAdjust?.let { account ->
-        if (showAdjustDialog) {
-            var targetBalanceStr by remember { mutableStateOf("") }
-            val currentCalculatedBalance = accountBalances[account.id] ?: 0.0
-
-            AlertDialog(
-                onDismissRequest = { showAdjustDialog = false },
-                title = { Text("Adjust ${account.name} Balance") },
-                text = {
-                    Column {
-                        Text("Enter the actual amount in this account.", fontSize = 13.sp, color = Color.Gray)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(value = targetBalanceStr, onValueChange = { targetBalanceStr = it }, label = { Text("Actual Balance (€)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
-                    }
-                },
-                confirmButton = {
-                    Button(onClick = {
-                        val targetBalance = targetBalanceStr.replace(",", ".").toDoubleOrNull()
-                        if (targetBalance != null) {
-                            viewModel.adjustAccountBalance(account, targetBalance, currentCalculatedBalance)
-                            showAdjustDialog = false
-                            accountToAdjust = null
-                        }
-                    }) { Text("Update") }
-                },
-                dismissButton = { TextButton(onClick = { showAdjustDialog = false }) { Text("Cancel") } }
-            )
-        }
     }
 
     if (showDeleteAccountDialog && accountToDelete != null) {
@@ -411,16 +397,15 @@ fun DashboardScreen(
         val tx = transactionToEdit!!
         val cat = categories.find { it.id == tx.categoryId }
 
-        var editTitle by remember { mutableStateOf(tx.title) }
+        var editCategoryName by remember { mutableStateOf(tx.title) }
         var editAmountStr by remember { mutableStateOf(tx.amount.toString()) }
         var editIsExpense by remember { mutableStateOf(cat?.isExpense ?: true) }
+        var expandedEditCategoryDropdown by remember { mutableStateOf(false) }
 
         val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
         var editDateStr by remember { mutableStateOf(sdf.format(Date(tx.date))) }
 
-        var editSelectedAccount by remember {
-            mutableStateOf(accounts.find { it.id == tx.accountId } ?: accounts.first())
-        }
+        var editSelectedAccount by remember { mutableStateOf(accounts.find { it.id == tx.accountId } ?: accounts.first()) }
         var expandedEditDropdown by remember { mutableStateOf(false) }
 
         AlertDialog(
@@ -428,7 +413,6 @@ fun DashboardScreen(
             title = { Text("Edit Transaction") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Selezione del conto (solo se ci sono conti disponibili)
                     if (accounts.isNotEmpty()) {
                         ExposedDropdownMenuBox(expanded = expandedEditDropdown, onExpandedChange = { expandedEditDropdown = !expandedEditDropdown }) {
                             OutlinedTextField(
@@ -442,23 +426,43 @@ fun DashboardScreen(
                             }
                         }
                     }
-                    OutlinedTextField(value = editTitle, onValueChange = { editTitle = it }, label = { Text("Title") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = editAmountStr, onValueChange = { editAmountStr = it }, label = { Text("Amount (€)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = editDateStr, onValueChange = { editDateStr = it }, label = { Text("Date (dd/MM/yyyy)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
 
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                        Text(text = if (editIsExpense) "🔴 Expense" else "🟢 Income")
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                        Text(text = if (editIsExpense) "🔴 Expense" else "🟢 Income", fontWeight = FontWeight.Medium)
                         Switch(checked = editIsExpense, onCheckedChange = { editIsExpense = it })
                     }
+
+                    val availableCategories = categories.filter { it.isExpense == editIsExpense && it.name != "Balance Adjustment" }
+                    ExposedDropdownMenuBox(expanded = expandedEditCategoryDropdown, onExpandedChange = { expandedEditCategoryDropdown = !expandedEditCategoryDropdown }) {
+                        OutlinedTextField(
+                            value = editCategoryName,
+                            onValueChange = { editCategoryName = it; expandedEditCategoryDropdown = true },
+                            label = { Text("Category") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedEditCategoryDropdown) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            singleLine = true
+                        )
+                        val filteredCats = availableCategories.filter { it.name.contains(editCategoryName, ignoreCase = true) }
+                        if (filteredCats.isNotEmpty() && expandedEditCategoryDropdown) {
+                            ExposedDropdownMenu(expanded = expandedEditCategoryDropdown, onDismissRequest = { expandedEditCategoryDropdown = false }) {
+                                filteredCats.forEach { c ->
+                                    DropdownMenuItem(text = { Text(c.name) }, onClick = { editCategoryName = c.name; expandedEditCategoryDropdown = false })
+                                }
+                            }
+                        }
+                    }
+
+                    OutlinedTextField(value = editAmountStr, onValueChange = { editAmountStr = it }, label = { Text("Amount (€)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = editDateStr, onValueChange = { editDateStr = it }, label = { Text("Date (dd/MM/yyyy)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
             },
             confirmButton = {
                 Button(onClick = {
                     val amount = editAmountStr.replace(",", ".").toDoubleOrNull()
-                    if (amount != null && editTitle.isNotBlank()) {
+                    if (amount != null && editCategoryName.isNotBlank()) {
                         viewModel.updateExistingTransaction(
                             transaction = tx,
-                            newTitle = editTitle,
+                            categoryName = editCategoryName,
                             newAmount = amount,
                             isExpense = editIsExpense,
                             newAccountId = editSelectedAccount.id,

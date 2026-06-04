@@ -44,26 +44,28 @@ class FinanceViewModel(private val dao: FinanceDao) : ViewModel() {
     // --- GESTIONE TRANSAZIONI ---
 
     // 4. Salva una spesa richiedendo esplicitamente l'ID del conto
-    fun saveQuickTransaction(title: String, amount: Double, isExpense: Boolean, accountId: Long) {
+    fun saveQuickTransaction(categoryName: String, amount: Double, isExpense: Boolean, accountId: Long) {
         viewModelScope.launch {
-            val existingCategory = allCategories.value.find { it.isExpense == isExpense }
+            // 1. Cerca se esiste già una categoria con quel nome esatto e quello stesso tipo (entrata/uscita)
+            val existingCategory = allCategories.value.find {
+                it.name.trim().equals(categoryName.trim(), ignoreCase = true) && it.isExpense == isExpense
+            }
 
+            // 2. Se esiste prende il suo ID, altrimenti la crea sul momento
             val categoryId = if (existingCategory != null) {
                 existingCategory.id
             } else {
-                val newCategory = Category(
-                    name = if (isExpense) "General Expense" else "General Income",
-                    isExpense = isExpense
-                )
-                dao.insertCategory(newCategory)
+                val newCategory = Category(name = categoryName.trim(), isExpense = isExpense)
+                dao.insertCategory(newCategory) // Restituisce il nuovo ID generato
             }
 
+            // 3. Salva la transazione
             val transaction = Transaction(
-                title = title,
+                title = categoryName.trim(), // Usiamo il nome della categoria come titolo visibile
                 amount = amount,
                 date = System.currentTimeMillis(),
-                accountId = accountId,
-                categoryId = categoryId
+                categoryId = categoryId,
+                accountId = accountId
             )
             dao.insertTransaction(transaction)
         }
@@ -83,26 +85,24 @@ class FinanceViewModel(private val dao: FinanceDao) : ViewModel() {
 
     fun updateExistingTransaction(
         transaction: Transaction,
-        newTitle: String,
+        categoryName: String,
         newAmount: Double,
         isExpense: Boolean,
         newAccountId: Long,
         newDateString: String
     ) {
         viewModelScope.launch {
-            // Trova o crea la categoria giusta
-            val existingCategory = allCategories.value.find { it.isExpense == isExpense }
+            val existingCategory = allCategories.value.find {
+                it.name.trim().equals(categoryName.trim(), ignoreCase = true) && it.isExpense == isExpense
+            }
+
             val categoryId = if (existingCategory != null) {
                 existingCategory.id
             } else {
-                val newCategory = Category(
-                    name = if (isExpense) "General Expense" else "General Income",
-                    isExpense = isExpense
-                )
+                val newCategory = Category(name = categoryName.trim(), isExpense = isExpense)
                 dao.insertCategory(newCategory)
             }
 
-            // Converte la stringa della data di nuovo in millisecondi (se il formato è errato, tiene la data vecchia)
             val sdf = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault())
             val parsedDate = try {
                 sdf.parse(newDateString)?.time ?: transaction.date
@@ -110,9 +110,8 @@ class FinanceViewModel(private val dao: FinanceDao) : ViewModel() {
                 transaction.date
             }
 
-            // Crea una copia della transazione con i dati aggiornati e la salva
             val updatedTx = transaction.copy(
-                title = newTitle,
+                title = categoryName.trim(),
                 amount = newAmount,
                 date = parsedDate,
                 categoryId = categoryId,
@@ -130,10 +129,10 @@ class FinanceViewModel(private val dao: FinanceDao) : ViewModel() {
             val isExpense = difference < 0
 
             saveQuickTransaction(
-                title = "Balance Adjustment",
+                categoryName = "Balance Adjustment",
                 amount = abs(difference),
                 isExpense = isExpense,
-                accountId = account.id
+                accountId = account.id,
             )
         }
     }
