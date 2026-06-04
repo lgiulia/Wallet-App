@@ -81,6 +81,47 @@ class FinanceViewModel(private val dao: FinanceDao) : ViewModel() {
         }
     }
 
+    fun updateExistingTransaction(
+        transaction: Transaction,
+        newTitle: String,
+        newAmount: Double,
+        isExpense: Boolean,
+        newAccountId: Long,
+        newDateString: String
+    ) {
+        viewModelScope.launch {
+            // Trova o crea la categoria giusta
+            val existingCategory = allCategories.value.find { it.isExpense == isExpense }
+            val categoryId = if (existingCategory != null) {
+                existingCategory.id
+            } else {
+                val newCategory = Category(
+                    name = if (isExpense) "General Expense" else "General Income",
+                    isExpense = isExpense
+                )
+                dao.insertCategory(newCategory)
+            }
+
+            // Converte la stringa della data di nuovo in millisecondi (se il formato è errato, tiene la data vecchia)
+            val sdf = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault())
+            val parsedDate = try {
+                sdf.parse(newDateString)?.time ?: transaction.date
+            } catch (e: Exception) {
+                transaction.date
+            }
+
+            // Crea una copia della transazione con i dati aggiornati e la salva
+            val updatedTx = transaction.copy(
+                title = newTitle,
+                amount = newAmount,
+                date = parsedDate,
+                categoryId = categoryId,
+                accountId = newAccountId
+            )
+            dao.updateTransaction(updatedTx)
+        }
+    }
+
     // 5. Riconciliazione (Aggiustamento automatico) per un conto specifico
     fun adjustAccountBalance(account: Account, targetBalance: Double, currentTotal: Double) {
         val difference = targetBalance - currentTotal
