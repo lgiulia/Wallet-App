@@ -17,7 +17,11 @@ import com.example.walletapp.SupabaseClient
 import io.github.jan.supabase.gotrue.SessionStatus
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.rpc
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 
 @Composable
 fun AuthDialog(onDismiss: () -> Unit) {
@@ -26,6 +30,9 @@ fun AuthDialog(onDismiss: () -> Unit) {
 
     // Ascolta in tempo reale se sei loggato o no
     val sessionStatus by SupabaseClient.client.auth.sessionStatus.collectAsState()
+
+    // Forza la schermata di login quando si elimina l'account
+    var forceShowLogin by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -38,12 +45,13 @@ fun AuthDialog(onDismiss: () -> Unit) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp),
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Se sei già loggato mostra il profilo
-                if (sessionStatus is SessionStatus.Authenticated) {
+                if (sessionStatus is SessionStatus.Authenticated && !forceShowLogin) {
                     val currentUser = SupabaseClient.client.auth.currentUserOrNull()
 
                     Text(
@@ -74,6 +82,56 @@ fun AuthDialog(onDismiss: () -> Unit) {
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
+
+                    // Bottone elimina account
+                    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+                    OutlinedButton(
+                        onClick = { showDeleteConfirm = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Delete Account")
+                    }
+
+                    if (showDeleteConfirm) {
+                        AlertDialog(
+                            onDismissRequest = { showDeleteConfirm = false },
+                            title = { Text("Are you sure?") },
+                            text = { Text("This will permanently delete your account.") },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        scope.launch {
+                                            try {
+                                                // 1. Innesca l'eliminazione effettiva dal database
+                                                SupabaseClient.client.postgrest.rpc("delete_my_account")
+
+                                                // Cambia interfaccia in login
+                                                forceShowLogin = true
+
+                                                /// 2. Tenta di fare il logout in background per pulire la cache (se fallisce, lo ignoriamo)
+                                                try {
+                                                    SupabaseClient.client.auth.signOut()
+                                                } catch (e: Exception) {
+                                                    // Ignoriamo l'errore: l'interfaccia è già cambiata!
+                                                }
+
+                                                Toast.makeText(context, "Account deleted", Toast.LENGTH_SHORT).show()
+                                                showDeleteConfirm = false
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                ) { Text("Delete") }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+                            }
+                        )
+                    }
 
                     TextButton(onClick = onDismiss) {
                         Text("Close")
