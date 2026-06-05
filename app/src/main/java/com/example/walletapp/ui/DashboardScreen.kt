@@ -47,6 +47,15 @@ fun DashboardScreen(
     val categories by viewModel.allCategories.collectAsState()
     val accounts by viewModel.allAccounts.collectAsState()
 
+    val appCurrency by viewModel.appCurrency.collectAsState()
+    val appDateFormat by viewModel.appDateFormat.collectAsState()
+
+    // Estrapoliamo solo il simbolo (es. da "€ (Euro)" prendiamo solo "€")
+    val currencySymbol = appCurrency.substringBefore(" ")
+
+    // Prepariamo il pattern per la data
+    val datePattern = if (appDateFormat == "MM/DD/YYYY") "MM/dd/yyyy" else "dd/MM/yyyy"
+
     var showTransactionDialog by remember { mutableStateOf(false) }
     var showAccountDialog by remember { mutableStateOf(false) }
     var accountToAdjust by remember { mutableStateOf<Account?>(null) }
@@ -128,7 +137,7 @@ fun DashboardScreen(
             ) {
                 Text(text = "Total Amount", fontSize = 14.sp, color = Color.Gray)
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(text = String.format("€ %.2f", totalAmount), fontSize = 36.sp, fontWeight = FontWeight.Bold)
+                Text(text = String.format("%s %.2f", currencySymbol, totalAmount), fontSize = 36.sp, fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -177,7 +186,7 @@ fun DashboardScreen(
                                 )
 
                                 Text(
-                                    text = String.format("€ %.2f", currentBalance),
+                                    text = String.format("%s %.2f", currencySymbol, currentBalance),
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 20.sp
                                 )
@@ -240,7 +249,7 @@ fun DashboardScreen(
                         val category = categories.find { it.id == transaction.categoryId }
                         val isExpense = category?.isExpense == true
 
-                        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                        val sdf = SimpleDateFormat(datePattern, Locale.getDefault())
                         val dateString = sdf.format(Date(transaction.date))
 
                         Card(
@@ -271,7 +280,7 @@ fun DashboardScreen(
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(
-                                        text = String.format(if (isExpense) "- %.2f €" else "+ %.2f €", transaction.amount),
+                                        text = String.format(if (isExpense) "- %.2f %s" else "+ %.2f %s", transaction.amount, currencySymbol),
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 15.sp,
                                         color = if (isExpense) Color(0xFFD32F2F) else Color(0xFF388E3C)
@@ -297,7 +306,7 @@ fun DashboardScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(value = accountName, onValueChange = { accountName = it }, label = { Text("Account Name") }, singleLine = true)
-                    OutlinedTextField(value = initBalanceStr, onValueChange = { initBalanceStr = it }, label = { Text("Initial Balance (€)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
+                    OutlinedTextField(value = initBalanceStr, onValueChange = { initBalanceStr = it }, label = { Text("Initial Balance") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
                 }
             },
             confirmButton = {
@@ -482,7 +491,7 @@ fun DashboardScreen(
                         }
                     }
 
-                    OutlinedTextField(value = editAmountStr, onValueChange = { editAmountStr = it }, label = { Text("Amount (€)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = editAmountStr, onValueChange = { editAmountStr = it }, label = { Text("Amount") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, modifier = Modifier.fillMaxWidth())
                     OutlinedTextField(value = editDateStr, onValueChange = { editDateStr = it }, label = { Text("Date (dd/MM/yyyy)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
             },

@@ -44,6 +44,13 @@ fun AccountDetailScreen(
     val categories by viewModel.allCategories.collectAsState()
     val accounts by viewModel.allAccounts.collectAsState()
 
+    val appCurrency by viewModel.appCurrency.collectAsState()
+    val appDateFormat by viewModel.appDateFormat.collectAsState()
+
+    // Estrapoliamo il simbolo e il pattern della data
+    val currencySymbol = appCurrency.substringBefore(" ")
+    val datePattern = if (appDateFormat == "MM/DD/YYYY") "MM/dd/yyyy" else "dd/MM/yyyy"
+
     var showTransactionDialog by remember { mutableStateOf(false) }
     var showAdjustDialog by remember { mutableStateOf(false) }
     var showDeleteTransactionDialog by remember { mutableStateOf(false) }
@@ -144,7 +151,7 @@ fun AccountDetailScreen(
                     }
                 }
             }
-            Text(text = String.format("€ %.2f", specificBalance), fontSize = 32.sp, fontWeight = FontWeight.Bold)
+            Text(text = String.format("%s %.2f", currencySymbol, specificBalance), fontSize = 32.sp, fontWeight = FontWeight.Bold)
 
             // --- VISUALIZZAZIONE PERCENTUALE TREND ---
             Spacer(modifier = Modifier.height(2.dp))
@@ -196,7 +203,7 @@ fun AccountDetailScreen(
                         val category = categories.find { it.id == transaction.categoryId }
                         val isExpense = category?.isExpense == true
 
-                        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                        val sdf = SimpleDateFormat(datePattern, Locale.getDefault())
                         val dateString = sdf.format(Date(transaction.date))
 
                         Card(
@@ -225,7 +232,7 @@ fun AccountDetailScreen(
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(
-                                        text = String.format(if (isExpense) "- %.2f €" else "+ %.2f €", transaction.amount),
+                                        text = String.format(if (isExpense) "- %.2f %s" else "+ %.2f %s", transaction.amount, currencySymbol),
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 15.sp,
                                         color = if (isExpense) Color(0xFFD32F2F) else Color(0xFF388E3C)

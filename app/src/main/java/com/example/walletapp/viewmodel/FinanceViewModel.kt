@@ -50,6 +50,15 @@ class FinanceViewModel : ViewModel() {
     private val _allTransactions = MutableStateFlow<List<Transaction>>(emptyList())
     val allTransactions: StateFlow<List<Transaction>> = _allTransactions.asStateFlow()
 
+    private val _appTheme = MutableStateFlow("System Default")
+    val appTheme: StateFlow<String> = _appTheme.asStateFlow()
+
+    private val _appCurrency = MutableStateFlow("€ (Euro)")
+    val appCurrency: StateFlow<String> = _appCurrency.asStateFlow()
+
+    private val _appDateFormat = MutableStateFlow("DD/MM/YYYY")
+    val appDateFormat: StateFlow<String> = _appDateFormat.asStateFlow()
+
     init {
         fetchData()
     }
@@ -64,6 +73,18 @@ class FinanceViewModel : ViewModel() {
                 println("Errore di sincronizzazione: ${e.message}")
             }
         }
+    }
+
+    fun setAppTheme(theme: String) {
+        _appTheme.value = theme
+    }
+
+    fun setAppCurrency(currency: String) {
+        _appCurrency.value = currency
+    }
+
+    fun setAppDateFormat(format: String) {
+        _appDateFormat.value = format
     }
 
     // --- GESTIONE CONTI ---

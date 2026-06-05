@@ -31,62 +31,67 @@ fun SettingsScreen(
     var showCategoriesDialog by remember { mutableStateOf(false) }
 
     var appearanceDropdownExpanded by remember { mutableStateOf(false) }
-    var selectedTheme by remember { mutableStateOf("System Default") }
+    val selectedTheme by viewModel.appTheme.collectAsState()
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        // Header
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp, top = 16.dp)
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-            }
-            Text("Settings", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 8.dp))
-        }
-
-        // Appearance
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Appearance", fontSize = 18.sp)
-            Box {
-                TextButton(onClick = { appearanceDropdownExpanded = true }) {
-                    Text(selectedTheme)
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            // Header
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp, top = 16.dp)
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                 }
-                DropdownMenu(
-                    expanded = appearanceDropdownExpanded,
-                    onDismissRequest = { appearanceDropdownExpanded = false }
-                ) {
-                    DropdownMenuItem(text = { Text("Light") }, onClick = { selectedTheme = "Light"; appearanceDropdownExpanded = false })
-                    DropdownMenuItem(text = { Text("Dark") }, onClick = { selectedTheme = "Dark"; appearanceDropdownExpanded = false })
-                    DropdownMenuItem(text = { Text("System Default") }, onClick = { selectedTheme = "System Default"; appearanceDropdownExpanded = false })
+                Text("Settings", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 8.dp))
+            }
+
+            // Appearance
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Appearance", fontSize = 18.sp)
+                Box {
+                    TextButton(onClick = { appearanceDropdownExpanded = true }) {
+                        Text(selectedTheme)
+                    }
+                    DropdownMenu(
+                        expanded = appearanceDropdownExpanded,
+                        onDismissRequest = { appearanceDropdownExpanded = false }
+                    ) {
+                        DropdownMenuItem(text = { Text("Light") }, onClick = { viewModel.setAppTheme("Light"); appearanceDropdownExpanded = false })
+                        DropdownMenuItem(text = { Text("Dark") }, onClick = { viewModel.setAppTheme("Dark"); appearanceDropdownExpanded = false })
+                        DropdownMenuItem(text = { Text("System Default") }, onClick = { viewModel.setAppTheme("System Default"); appearanceDropdownExpanded = false })
+                    }
                 }
             }
+            HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
+
+            // Preferences
+            SettingsMenuItem(title = "Preferences", onClick = { showPreferencesDialog = true })
+
+            // Manage Categories
+            SettingsMenuItem(title = "Manage Categories", onClick = { showCategoriesDialog = true })
+
+            // Account Management
+            SettingsMenuItem(title = "Account Management", onClick = onOpenAccountManagement)
+
+            // Data & Backup
+            SettingsMenuItem(title = "Data & Backup", onClick = { /* TODO: Implement Export CSV */ })
+
+            // Security
+            SettingsMenuItem(title = "Security", onClick = { /* TODO: Implement App Lock */ })
         }
-        HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
-
-        // Preferences
-        SettingsMenuItem(title = "Preferences", onClick = { showPreferencesDialog = true })
-
-        // Manage Categories
-        SettingsMenuItem(title = "Manage Categories", onClick = { showCategoriesDialog = true })
-
-        // Account Management
-        SettingsMenuItem(title = "Account Management", onClick = onOpenAccountManagement)
-
-        // Data & Backup
-        SettingsMenuItem(title = "Data & Backup", onClick = { /* TODO: Implement Export CSV */ })
-
-        // Security
-        SettingsMenuItem(title = "Security", onClick = { /* TODO: Implement App Lock */ })
     }
 
     // --- POPUPS ---
     if (showPreferencesDialog) {
-        PreferencesDialog(onDismiss = { showPreferencesDialog = false })
+        PreferencesDialog(viewModel = viewModel, onDismiss = { showPreferencesDialog = false })
     }
 
     if (showCategoriesDialog) {
@@ -111,11 +116,12 @@ fun SettingsMenuItem(title: String, onClick: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PreferencesDialog(onDismiss: () -> Unit) {
-    var currency by remember { mutableStateOf("€ (Euro)") }
+fun PreferencesDialog(viewModel: FinanceViewModel, onDismiss: () -> Unit) {
+    // Legge i valori dal ViewModel in tempo reale
+    val currency by viewModel.appCurrency.collectAsState()
     var currencyExpanded by remember { mutableStateOf(false) }
 
-    var dateFormat by remember { mutableStateOf("DD/MM/YYYY") }
+    val dateFormat by viewModel.appDateFormat.collectAsState()
     var dateExpanded by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -132,7 +138,8 @@ fun PreferencesDialog(onDismiss: () -> Unit) {
                     )
                     ExposedDropdownMenu(expanded = currencyExpanded, onDismissRequest = { currencyExpanded = false }) {
                         listOf("€ (Euro)", "$ (USD)", "£ (GBP)").forEach {
-                            DropdownMenuItem(text = { Text(it) }, onClick = { currency = it; currencyExpanded = false })
+                            // Salva il valore nel ViewModel al click
+                            DropdownMenuItem(text = { Text(it) }, onClick = { viewModel.setAppCurrency(it); currencyExpanded = false })
                         }
                     }
                 }
@@ -146,7 +153,7 @@ fun PreferencesDialog(onDismiss: () -> Unit) {
                     )
                     ExposedDropdownMenu(expanded = dateExpanded, onDismissRequest = { dateExpanded = false }) {
                         listOf("DD/MM/YYYY", "MM/DD/YYYY").forEach {
-                            DropdownMenuItem(text = { Text(it) }, onClick = { dateFormat = it; dateExpanded = false })
+                            DropdownMenuItem(text = { Text(it) }, onClick = { viewModel.setAppDateFormat(it); dateExpanded = false })
                         }
                     }
                 }
@@ -210,7 +217,7 @@ fun ManageCategoriesDialog(viewModel: FinanceViewModel, onDismiss: () -> Unit) {
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(if (editIsExpense) "Exp." else "Inc.", fontSize = 12.sp)
+                        Text(if (editIsExpense) "🔴" else "🟢", fontSize = 12.sp)
                         Switch(checked = editIsExpense, onCheckedChange = { editIsExpense = it })
                     }
                 }

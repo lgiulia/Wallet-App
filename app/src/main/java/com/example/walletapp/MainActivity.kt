@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme // Import aggiunto per leggere il tema di sistema
 import androidx.compose.runtime.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.walletapp.ui.AccountDetailScreen
@@ -19,8 +20,20 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            WalletAppTheme {
-                val viewModel: FinanceViewModel = viewModel()
+            val viewModel: FinanceViewModel = viewModel()
+
+            // Legge il tema scelto in tempo reale
+            val currentTheme by viewModel.appTheme.collectAsState()
+
+            // Calcola se si deve forzare il Dark Mode, il Light Mode, o seguire il sistema
+            val isDarkTheme = when (currentTheme) {
+                "Dark" -> true
+                "Light" -> false
+                else -> isSystemInDarkTheme()
+            }
+
+            // Passa il valore calcolato al tema
+            WalletAppTheme(darkTheme = isDarkTheme) {
                 var selectedAccountIdForDetail by remember { mutableStateOf<Long?>(null) }
                 var showProfileDialog by remember { mutableStateOf(false) }
                 var showSettingsScreen by remember { mutableStateOf(false) }
