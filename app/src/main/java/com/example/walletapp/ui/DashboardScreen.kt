@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,7 +40,8 @@ import java.util.*
 fun DashboardScreen(
     viewModel: FinanceViewModel,
     onNavigateToDetail: (Long?) -> Unit,
-    onNavigateToProfile: () -> Unit
+    onNavigateToProfile: () -> Unit,
+    onNavigateToSettings: () -> Unit
 ) {
     val transactions by viewModel.allTransactions.collectAsState()
     val categories by viewModel.allCategories.collectAsState()
@@ -89,35 +91,41 @@ fun DashboardScreen(
                 .padding(paddingValues)
                 .padding(top = 16.dp, start = 16.dp, end = 16.dp)
         ) {
-            // Icona profilo
+            // SETTINGS + DASHBOARD + PROFILE
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                IconButton(onClick = onNavigateToSettings) {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Default.Settings,
+                        contentDescription = "Settings"
+                    )
+                }
+
                 Text(
                     text = "Dashboard",
                     fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
+
                 IconButton(onClick = onNavigateToProfile) {
                     Icon(
-                        imageVector = Icons.Default.Person,
+                        imageVector = androidx.compose.material.icons.Icons.Default.Person,
                         contentDescription = "Profile"
                     )
                 }
             }
-
             Spacer(modifier = Modifier.height(16.dp))
-            // --- HEADER: APP NAME & GLOBAL TOTAL ---
+            // --- GLOBAL TOTAL ---
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onNavigateToDetail(null) },
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(text = "Wallet App", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-                Spacer(modifier = Modifier.height(4.dp))
                 Text(text = "Total Amount", fontSize = 14.sp, color = Color.Gray)
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(text = String.format("€ %.2f", totalAmount), fontSize = 36.sp, fontWeight = FontWeight.Bold)

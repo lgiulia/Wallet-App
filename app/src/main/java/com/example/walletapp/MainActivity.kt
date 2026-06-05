@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.walletapp.ui.AccountDetailScreen
 import com.example.walletapp.ui.AuthDialog
 import com.example.walletapp.ui.DashboardScreen
+import com.example.walletapp.ui.SettingsScreen
 import com.example.walletapp.ui.theme.WalletAppTheme
 import com.example.walletapp.viewmodel.FinanceViewModel
 
@@ -22,6 +23,7 @@ class MainActivity : ComponentActivity() {
                 val viewModel: FinanceViewModel = viewModel()
                 var selectedAccountIdForDetail by remember { mutableStateOf<Long?>(null) }
                 var showProfileDialog by remember { mutableStateOf(false) }
+                var showSettingsScreen by remember { mutableStateOf(false) }
 
                 // Se la variabile è true, disegna il popup in sovrimpressione
                 if (showProfileDialog) {
@@ -30,14 +32,21 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
-                // La Dashboard restano sempre renderizzati sotto al popup
-                if (selectedAccountIdForDetail == null) {
+                // Smistamento Pagine
+                if (showSettingsScreen) {
+                    SettingsScreen(
+                        viewModel = viewModel,
+                        onBack = { showSettingsScreen = false },
+                        onOpenAccountManagement = { showProfileDialog = true } // Apre il popup AuthDialog da Settings
+                    )
+                } else if (selectedAccountIdForDetail == null) {
                     DashboardScreen(
                         viewModel = viewModel,
                         onNavigateToDetail = { id ->
                             selectedAccountIdForDetail = id ?: -1L
                         },
-                        onNavigateToProfile = { showProfileDialog = true } // Apre il popup
+                        onNavigateToProfile = { showProfileDialog = true },
+                        onNavigateToSettings = { showSettingsScreen = true } // Apre Settings
                     )
                 } else {
                     AccountDetailScreen(

@@ -165,4 +165,21 @@ class FinanceViewModel : ViewModel() {
             )
         }
     }
+
+    // --- CATEGORIES ---
+    fun addCategory(name: String, isExpense: Boolean) {
+        viewModelScope.launch {
+            val newCat = CategoryInsert(name = name.trim(), isExpense = isExpense)
+            db["categories"].insert(newCat)
+            fetchData()
+        }
+    }
+
+    fun updateCategory(category: Category, newName: String, newIsExpense: Boolean) {
+        viewModelScope.launch {
+            val updatedCat = CategoryInsert(name = newName.trim(), isExpense = newIsExpense)
+            db["categories"].update(updatedCat) { filter { eq("id", category.id) } }
+            fetchData()
+        }
+    }
 }
