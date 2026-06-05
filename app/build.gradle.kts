@@ -64,6 +64,7 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.supabase.postgrest)
     implementation(libs.ktor.client.okhttp)
+    implementation(libs.supabase.gotrue)
 }
 
 kotlin {

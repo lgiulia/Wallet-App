@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,7 +38,8 @@ import java.util.*
 @Composable
 fun DashboardScreen(
     viewModel: FinanceViewModel,
-    onNavigateToDetail: (Long?) -> Unit
+    onNavigateToDetail: (Long?) -> Unit,
+    onNavigateToProfile: () -> Unit
 ) {
     val transactions by viewModel.allTransactions.collectAsState()
     val categories by viewModel.allCategories.collectAsState()
@@ -87,6 +89,26 @@ fun DashboardScreen(
                 .padding(paddingValues)
                 .padding(top = 16.dp, start = 16.dp, end = 16.dp)
         ) {
+            // Icona profilo
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Dashboard",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                IconButton(onClick = onNavigateToProfile) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Profile"
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
             // --- HEADER: APP NAME & GLOBAL TOTAL ---
             Column(
                 modifier = Modifier

@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.walletapp.ui.AccountDetailScreen
+import com.example.walletapp.ui.AuthDialog
 import com.example.walletapp.ui.DashboardScreen
 import com.example.walletapp.ui.theme.WalletAppTheme
 import com.example.walletapp.viewmodel.FinanceViewModel
@@ -19,15 +20,24 @@ class MainActivity : ComponentActivity() {
         setContent {
             WalletAppTheme {
                 val viewModel: FinanceViewModel = viewModel()
-
                 var selectedAccountIdForDetail by remember { mutableStateOf<Long?>(null) }
+                var showProfileDialog by remember { mutableStateOf(false) }
 
+                // Se la variabile è true, disegna il popup in sovrimpressione
+                if (showProfileDialog) {
+                    AuthDialog(
+                        onDismiss = { showProfileDialog = false } // Permette di chiuderlo premendo fuori o su Cancel
+                    )
+                }
+
+                // La Dashboard restano sempre renderizzati sotto al popup
                 if (selectedAccountIdForDetail == null) {
                     DashboardScreen(
                         viewModel = viewModel,
                         onNavigateToDetail = { id ->
                             selectedAccountIdForDetail = id ?: -1L
-                        }
+                        },
+                        onNavigateToProfile = { showProfileDialog = true } // Apre il popup
                     )
                 } else {
                     AccountDetailScreen(
