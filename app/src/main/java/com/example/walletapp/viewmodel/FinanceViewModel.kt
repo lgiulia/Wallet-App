@@ -1,15 +1,20 @@
 package com.example.walletapp.viewmodel
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.walletapp.SupabaseClient
 import com.example.walletapp.data.Account
 import com.example.walletapp.data.Category
+import com.example.walletapp.data.PreferencesManager
 import com.example.walletapp.data.Transaction
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -37,10 +42,11 @@ data class TransactionInsert(
     @SerialName("account_id") val accountId: Long
 )
 
-class FinanceViewModel : ViewModel() {
+class FinanceViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = SupabaseClient.client.postgrest
 
+    private val prefs = PreferencesManager(application)
     private val _allAccounts = MutableStateFlow<List<Account>>(emptyList())
     val allAccounts: StateFlow<List<Account>> = _allAccounts.asStateFlow()
 
@@ -50,14 +56,22 @@ class FinanceViewModel : ViewModel() {
     private val _allTransactions = MutableStateFlow<List<Transaction>>(emptyList())
     val allTransactions: StateFlow<List<Transaction>> = _allTransactions.asStateFlow()
 
-    private val _appTheme = MutableStateFlow("System Default")
-    val appTheme: StateFlow<String> = _appTheme.asStateFlow()
+    val appTheme: StateFlow<String> = prefs.themeFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = "System Default"
+    )
+    val appCurrency: StateFlow<String> = prefs.currencyFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = "€ (Euro)"
+    )
 
-    private val _appCurrency = MutableStateFlow("€ (Euro)")
-    val appCurrency: StateFlow<String> = _appCurrency.asStateFlow()
-
-    private val _appDateFormat = MutableStateFlow("DD/MM/YYYY")
-    val appDateFormat: StateFlow<String> = _appDateFormat.asStateFlow()
+    val appDateFormat: StateFlow<String> = prefs.dateFormatFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = "DD/MM/YYYY"
+    )
 
     init {
         fetchData()
@@ -76,15 +90,15 @@ class FinanceViewModel : ViewModel() {
     }
 
     fun setAppTheme(theme: String) {
-        _appTheme.value = theme
+        viewModelScope.launch { prefs.saveTheme(theme)}
     }
 
     fun setAppCurrency(currency: String) {
-        _appCurrency.value = currency
+        viewModelScope.launch {prefs.saveCurrency(currency)}
     }
 
     fun setAppDateFormat(format: String) {
-        _appDateFormat.value = format
+        viewModelScope.launch {prefs.saveDateFormat(format)}
     }
 
     // --- GESTIONE CONTI ---

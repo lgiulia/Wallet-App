@@ -65,6 +65,7 @@ dependencies {
     implementation(libs.supabase.postgrest)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.supabase.gotrue)
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 }
 
 kotlin {
