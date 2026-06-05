@@ -9,6 +9,7 @@ import com.example.walletapp.data.Account
 import com.example.walletapp.data.Category
 import com.example.walletapp.data.PreferencesManager
 import com.example.walletapp.data.Transaction
+import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -74,7 +75,28 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     )
 
     init {
-        fetchData()
+        // Ascoltiamo in tempo reale lo stato dell'autenticazione di Supabase
+        viewModelScope.launch {
+            SupabaseClient.client.auth.sessionStatus.collect { status ->
+                when (status) {
+                    is io.github.jan.supabase.gotrue.SessionStatus.Authenticated -> {
+                        // IL TOKEN È PRONTO! Ora siamo sicuri al 100% che RLS ci lascerà passare.
+                        // Scarichiamo i dati aggiornati dell'utente loggato.
+                        fetchData()
+                    }
+                    is io.github.jan.supabase.gotrue.SessionStatus.NotAuthenticated -> {
+                        // Se l'utente non è loggato (o ha appena fatto Logout/Delete),
+                        // svuotiamo le liste locali per non mostrare dati residui.
+                        _allAccounts.value = emptyList()
+                        _allTransactions.value = emptyList()
+                        _allCategories.value = emptyList()
+                    }
+                    else -> {
+                        // Stati di 'Loading' o 'NetworkError': aspettiamo che si stabilizzi
+                    }
+                }
+            }
+        }
     }
 
     private fun fetchData() {

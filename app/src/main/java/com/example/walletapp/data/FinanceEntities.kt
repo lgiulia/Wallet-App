@@ -5,24 +5,27 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class Category(
-    val id: Long = 0,
+    val id: Long,
     val name: String,
-    @SerialName("is_expense") val isExpense: Boolean
+    @SerialName("is_expense") val isExpense: Boolean,
+    @SerialName("user_id") val userId: String? = null
 )
 
 @Serializable
 data class Account(
-    val id: Long = 0,
+    val id: Long,
     val name: String,
-    @SerialName("initial_balance") val initialBalance: Double = 0.0
+    @SerialName("initial_balance") val initialBalance: Double,
+    @SerialName("user_id") val userId: String? = null
 )
 
 @Serializable
 data class Transaction(
-    val id: Long = 0,
-    val title: String,
-    val amount: Double,
-    val date: Long,
+    val id: Long,
+    @SerialName("account_id") val accountId: Long,
     @SerialName("category_id") val categoryId: Long,
-    @SerialName("account_id") val accountId: Long
+    val amount: Double,
+    val title: String,
+    val date: Long,
+    @SerialName("user_id") val userId: String? = null
 )
