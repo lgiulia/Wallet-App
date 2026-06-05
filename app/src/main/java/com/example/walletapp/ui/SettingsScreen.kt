@@ -82,10 +82,10 @@ fun SettingsScreen(
             SettingsMenuItem(title = "Account Management", onClick = onOpenAccountManagement)
 
             // Data & Backup
-            SettingsMenuItem(title = "Data & Backup", onClick = { /* TODO: Implement Export CSV */ })
+            // SettingsMenuItem(title = "Data & Backup", onClick = { /* TODO: Implement Export CSV */ })
 
             // Security
-            SettingsMenuItem(title = "Security", onClick = { /* TODO: Implement App Lock */ })
+            // SettingsMenuItem(title = "Security", onClick = { /* TODO: Implement App Lock */ })
         }
     }
 
