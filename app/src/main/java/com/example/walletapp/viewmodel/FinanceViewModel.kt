@@ -239,4 +239,11 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             fetchData()
         }
     }
+
+    // --- RESET MANUALE DATI ---
+    fun clearAllData() {
+        _allAccounts.value = emptyList()
+        _allTransactions.value = emptyList()
+        _allCategories.value = emptyList()
+    }
 }

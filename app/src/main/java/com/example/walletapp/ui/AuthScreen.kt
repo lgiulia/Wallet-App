@@ -24,15 +24,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 
 @Composable
-fun AuthDialog(onDismiss: () -> Unit) {
+fun AuthDialog(viewModel: com.example.walletapp.viewmodel.FinanceViewModel, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     // Ascolta in tempo reale se sei loggato o no
     val sessionStatus by SupabaseClient.client.auth.sessionStatus.collectAsState()
-
-    // Forza la schermata di login quando si elimina l'account
-    var forceShowLogin by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -51,7 +48,7 @@ fun AuthDialog(onDismiss: () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Se sei già loggato mostra il profilo
-                if (sessionStatus is SessionStatus.Authenticated && !forceShowLogin) {
+                if (sessionStatus is SessionStatus.Authenticated) {
                     val currentUser = SupabaseClient.client.auth.currentUserOrNull()
 
                     Text(
@@ -71,8 +68,23 @@ fun AuthDialog(onDismiss: () -> Unit) {
                     Button(
                         onClick = {
                             scope.launch {
-                                SupabaseClient.client.auth.signOut()
-                                Toast.makeText(context, "Signed out successfully", Toast.LENGTH_SHORT).show()
+                                try {
+                                    // Tenta il logout sul server
+                                    SupabaseClient.client.auth.signOut()
+                                } catch (e: Exception) {
+                                    // Se il server dà errore (es. account già eliminato), lo ignoriamo!
+                                } finally {
+                                    // IN OGNI CASO:
+                                    // 1. Pialla la memoria fisica del telefono forzatamente
+                                    try { SupabaseClient.client.auth.clearSession() } catch (e: Exception) {}
+
+                                    // 2. Azzera i dati della Dashboard dietro al popup
+                                    viewModel.clearAllData()
+
+                                    // 3. Mostra il messaggio e chiudi la finestra
+                                    Toast.makeText(context, "Signed out successfully", Toast.LENGTH_SHORT).show()
+                                    onDismiss()
+                                }
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -104,23 +116,22 @@ fun AuthDialog(onDismiss: () -> Unit) {
                                     onClick = {
                                         scope.launch {
                                             try {
-                                                // 1. Innesca l'eliminazione effettiva dal database
+                                                // 1. Lancia la cancellazione a catena sul server
                                                 SupabaseClient.client.postgrest.rpc("delete_my_account")
+                                            } catch (e: Exception) {
+                                                // Ignoriamo l'errore se l'account era già sparito
+                                            } finally {
+                                                // IN OGNI CASO:
+                                                // 2. Distruggi la sessione locale senza chiedere permesso
+                                                try { SupabaseClient.client.auth.clearSession() } catch (e: Exception) {}
 
-                                                // Cambia interfaccia in login
-                                                forceShowLogin = true
+                                                // 3. Azzera la Dashboard
+                                                viewModel.clearAllData()
 
-                                                /// 2. Tenta di fare il logout in background per pulire la cache (se fallisce, lo ignoriamo)
-                                                try {
-                                                    SupabaseClient.client.auth.signOut()
-                                                } catch (e: Exception) {
-                                                    // Ignoriamo l'errore: l'interfaccia è già cambiata!
-                                                }
-
+                                                // 4. Chiudi le finestre
                                                 Toast.makeText(context, "Account deleted", Toast.LENGTH_SHORT).show()
                                                 showDeleteConfirm = false
-                                            } catch (e: Exception) {
-                                                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                                onDismiss()
                                             }
                                         }
                                     },

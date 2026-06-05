@@ -41,6 +41,7 @@ class MainActivity : ComponentActivity() {
                 // Se la variabile è true, disegna il popup in sovrimpressione
                 if (showProfileDialog) {
                     AuthDialog(
+                        viewModel = viewModel,
                         onDismiss = { showProfileDialog = false } // Permette di chiuderlo premendo fuori o su Cancel
                     )
                 }
