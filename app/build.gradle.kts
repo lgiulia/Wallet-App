@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.android)
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.4.0"
 }
 
 android {
@@ -37,9 +38,6 @@ android {
     buildFeatures {
         compose = true
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
 }
 
 dependencies {
@@ -64,4 +62,12 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     ksp( libs.androidx.room.compiler)
     implementation(libs.androidx.material.icons.extended)
+    implementation(libs.supabase.postgrest)
+    implementation(libs.ktor.client.okhttp)
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+    }
 }

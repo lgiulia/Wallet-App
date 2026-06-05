@@ -1,85 +1,109 @@
 package com.example.walletapp.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.walletapp.SupabaseClient
 import com.example.walletapp.data.Account
 import com.example.walletapp.data.Category
-import com.example.walletapp.data.FinanceDao
 import com.example.walletapp.data.Transaction
-import kotlinx.coroutines.flow.SharingStarted
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlin.math.abs
 
-class FinanceViewModel(private val dao: FinanceDao) : ViewModel() {
+// --- CLASSI DTO PER L'INSERIMENTO SUL CLOUD (Senza campo ID) ---
+@Serializable
+data class AccountInsert(
+    val name: String,
+    @SerialName("initial_balance") val initialBalance: Double
+)
 
-    // --- LETTURA DATI ---
-    val allTransactions: StateFlow<List<Transaction>> = dao.getAllTransactions()
-        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = emptyList())
+@Serializable
+data class CategoryInsert(
+    val name: String,
+    @SerialName("is_expense") val isExpense: Boolean
+)
 
-    val allCategories: StateFlow<List<Category>> = dao.getAllCategories()
-        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = emptyList())
+@Serializable
+data class TransactionInsert(
+    val title: String,
+    val amount: Double,
+    val date: Long,
+    @SerialName("category_id") val categoryId: Long,
+    @SerialName("account_id") val accountId: Long
+)
 
-    val allAccounts: StateFlow<List<Account>> = dao.getAllAccounts()
-        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = emptyList())
+class FinanceViewModel : ViewModel() {
+
+    private val db = SupabaseClient.client.postgrest
+
+    private val _allAccounts = MutableStateFlow<List<Account>>(emptyList())
+    val allAccounts: StateFlow<List<Account>> = _allAccounts.asStateFlow()
+
+    private val _allCategories = MutableStateFlow<List<Category>>(emptyList())
+    val allCategories: StateFlow<List<Category>> = _allCategories.asStateFlow()
+
+    private val _allTransactions = MutableStateFlow<List<Transaction>>(emptyList())
+    val allTransactions: StateFlow<List<Transaction>> = _allTransactions.asStateFlow()
+
+    init {
+        fetchData()
+    }
+
+    private fun fetchData() {
+        viewModelScope.launch {
+            try {
+                _allAccounts.value = db["accounts"].select().decodeList<Account>()
+                _allCategories.value = db["categories"].select().decodeList<Category>()
+                _allTransactions.value = db["transactions"].select().decodeList<Transaction>()
+            } catch (e: Exception) {
+                println("Errore di sincronizzazione: ${e.message}")
+            }
+        }
+    }
 
     // --- GESTIONE CONTI ---
-
-    // 2. Crea un nuovo conto
     fun createAccount(name: String, initialBalance: Double) {
         viewModelScope.launch {
-            dao.insertAccount(Account(name = name, initialBalance = initialBalance))
-        }
-    }
-
-    // 3. Modifica il valore iniziale di un conto esistente
-    fun updateAccountInitialBalance(account: Account, newInitialBalance: Double) {
-        viewModelScope.launch {
-            dao.updateAccount(account.copy(initialBalance = newInitialBalance))
-        }
-    }
-
-    // --- GESTIONE TRANSAZIONI ---
-
-    // 4. Salva una spesa richiedendo esplicitamente l'ID del conto
-    fun saveQuickTransaction(categoryName: String, amount: Double, isExpense: Boolean, accountId: Long) {
-        viewModelScope.launch {
-            // 1. Cerca se esiste già una categoria con quel nome esatto e quello stesso tipo (entrata/uscita)
-            val existingCategory = allCategories.value.find {
-                it.name.trim().equals(categoryName.trim(), ignoreCase = true) && it.isExpense == isExpense
-            }
-
-            // 2. Se esiste prende il suo ID, altrimenti la crea sul momento
-            val categoryId = if (existingCategory != null) {
-                existingCategory.id
-            } else {
-                val newCategory = Category(name = categoryName.trim(), isExpense = isExpense)
-                dao.insertCategory(newCategory) // Restituisce il nuovo ID generato
-            }
-
-            // 3. Salva la transazione
-            val transaction = Transaction(
-                title = categoryName.trim(), // Usiamo il nome della categoria come titolo visibile
-                amount = amount,
-                date = System.currentTimeMillis(),
-                categoryId = categoryId,
-                accountId = accountId
-            )
-            dao.insertTransaction(transaction)
+            // Usiamo il nostro DTO sicuro invece della mappa
+            val newAccount = AccountInsert(name = name, initialBalance = initialBalance)
+            db["accounts"].insert(newAccount)
+            fetchData()
         }
     }
 
     fun deleteAccount(account: Account) {
         viewModelScope.launch {
-            dao.deleteAccount(account)
+            db["accounts"].delete { filter { eq("id", account.id) } }
+            fetchData()
         }
     }
 
-    fun deleteTransaction(transaction: Transaction) {
+    // --- GESTIONE TRANSAZIONI E CATEGORIE ---
+    fun saveQuickTransaction(categoryName: String, amount: Double, isExpense: Boolean, accountId: Long) {
         viewModelScope.launch {
-            dao.deleteTransaction(transaction)
+            var category = _allCategories.value.find {
+                it.name.trim().equals(categoryName.trim(), ignoreCase = true) && it.isExpense == isExpense
+            }
+
+            if (category == null) {
+                val newCat = CategoryInsert(name = categoryName.trim(), isExpense = isExpense)
+                category = db["categories"].insert(newCat) { select() }.decodeSingle<Category>()
+            }
+
+            val newTx = TransactionInsert(
+                title = category.name,
+                amount = amount,
+                date = System.currentTimeMillis(),
+                categoryId = category.id,
+                accountId = accountId
+            )
+            db["transactions"].insert(newTx)
+            fetchData()
         }
     }
 
@@ -92,15 +116,13 @@ class FinanceViewModel(private val dao: FinanceDao) : ViewModel() {
         newDateString: String
     ) {
         viewModelScope.launch {
-            val existingCategory = allCategories.value.find {
+            var category = _allCategories.value.find {
                 it.name.trim().equals(categoryName.trim(), ignoreCase = true) && it.isExpense == isExpense
             }
 
-            val categoryId = if (existingCategory != null) {
-                existingCategory.id
-            } else {
-                val newCategory = Category(name = categoryName.trim(), isExpense = isExpense)
-                dao.insertCategory(newCategory)
+            if (category == null) {
+                val newCat = CategoryInsert(name = categoryName.trim(), isExpense = isExpense)
+                category = db["categories"].insert(newCat) { select() }.decodeSingle<Category>()
             }
 
             val sdf = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault())
@@ -110,40 +132,37 @@ class FinanceViewModel(private val dao: FinanceDao) : ViewModel() {
                 transaction.date
             }
 
-            val updatedTx = transaction.copy(
-                title = categoryName.trim(),
+            val updatedTx = TransactionInsert(
+                title = category.name,
                 amount = newAmount,
                 date = parsedDate,
-                categoryId = categoryId,
+                categoryId = category.id,
                 accountId = newAccountId
             )
-            dao.updateTransaction(updatedTx)
+
+            db["transactions"].update(updatedTx) { filter { eq("id", transaction.id) } }
+            fetchData()
         }
     }
 
-    // 5. Riconciliazione (Aggiustamento automatico) per un conto specifico
+    fun deleteTransaction(transaction: Transaction) {
+        viewModelScope.launch {
+            db["transactions"].delete { filter { eq("id", transaction.id) } }
+            fetchData()
+        }
+    }
+
+    // --- ALLINEAMENTO SALDO ---
     fun adjustAccountBalance(account: Account, targetBalance: Double, currentTotal: Double) {
         val difference = targetBalance - currentTotal
-
         if (difference != 0.0) {
             val isExpense = difference < 0
-
             saveQuickTransaction(
                 categoryName = "Balance Adjustment",
                 amount = abs(difference),
                 isExpense = isExpense,
-                accountId = account.id,
+                accountId = account.id
             )
         }
-    }
-}
-
-class FinanceViewModelFactory(private val dao: FinanceDao) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(FinanceViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return FinanceViewModel(dao) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
