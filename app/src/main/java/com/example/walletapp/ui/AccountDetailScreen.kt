@@ -153,7 +153,7 @@ fun AccountDetailScreen(
                     }
                 }
             }
-            Text(text = String.format("%s %.2f", currencySymbol, specificBalance), fontSize = 32.sp, fontWeight = FontWeight.Bold)
+            Text(text = String.format("%s %,.2f", currencySymbol, specificBalance), fontSize = 32.sp, fontWeight = FontWeight.Bold)
 
             // --- VISUALIZZAZIONE PERCENTUALE TREND ---
             Spacer(modifier = Modifier.height(2.dp))
@@ -234,7 +234,7 @@ fun AccountDetailScreen(
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(
-                                        text = String.format(if (isExpense) "- %.2f %s" else "+ %.2f %s", transaction.amount, currencySymbol),
+                                        text = String.format(if (isExpense) "- %,.2f %s" else "+ %,.2f %s", transaction.amount, currencySymbol),
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 15.sp,
                                         color = if (isExpense) Color(0xFFD32F2F) else Color(0xFF388E3C)

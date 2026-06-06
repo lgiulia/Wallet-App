@@ -24,7 +24,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 
 @Composable
-fun AuthDialog(viewModel: com.example.walletapp.viewmodel.FinanceViewModel, onDismiss: () -> Unit) {
+fun AuthDialog(viewModel: com.example.walletapp.viewmodel.FinanceViewModel,
+               showDeleteOption: Boolean = false,
+               onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -94,54 +96,64 @@ fun AuthDialog(viewModel: com.example.walletapp.viewmodel.FinanceViewModel, onDi
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
+                    if (showDeleteOption) {
+                        // Bottone elimina account
+                        var showDeleteConfirm by remember { mutableStateOf(false) }
 
-                    // Bottone elimina account
-                    var showDeleteConfirm by remember { mutableStateOf(false) }
+                        OutlinedButton(
+                            onClick = { showDeleteConfirm = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Text("Delete Account")
+                        }
 
-                    OutlinedButton(
-                        onClick = { showDeleteConfirm = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Text("Delete Account")
-                    }
+                        if (showDeleteConfirm) {
+                            AlertDialog(
+                                onDismissRequest = { showDeleteConfirm = false },
+                                title = { Text("Are you sure?") },
+                                text = { Text("This will permanently delete your account.") },
+                                confirmButton = {
+                                    Button(
+                                        onClick = {
+                                            scope.launch {
+                                                try {
+                                                    // 1. Lancia la cancellazione a catena sul server
+                                                    SupabaseClient.client.postgrest.rpc("delete_my_account")
+                                                } catch (e: Exception) {
+                                                    // Ignoriamo l'errore se l'account era già sparito
+                                                } finally {
+                                                    // IN OGNI CASO:
+                                                    // 2. Distruggi la sessione locale senza chiedere permesso
+                                                    try {
+                                                        SupabaseClient.client.auth.clearSession()
+                                                    } catch (e: Exception) {
+                                                    }
 
-                    if (showDeleteConfirm) {
-                        AlertDialog(
-                            onDismissRequest = { showDeleteConfirm = false },
-                            title = { Text("Are you sure?") },
-                            text = { Text("This will permanently delete your account.") },
-                            confirmButton = {
-                                Button(
-                                    onClick = {
-                                        scope.launch {
-                                            try {
-                                                // 1. Lancia la cancellazione a catena sul server
-                                                SupabaseClient.client.postgrest.rpc("delete_my_account")
-                                            } catch (e: Exception) {
-                                                // Ignoriamo l'errore se l'account era già sparito
-                                            } finally {
-                                                // IN OGNI CASO:
-                                                // 2. Distruggi la sessione locale senza chiedere permesso
-                                                try { SupabaseClient.client.auth.clearSession() } catch (e: Exception) {}
+                                                    // 3. Azzera la Dashboard
+                                                    viewModel.clearAllData()
 
-                                                // 3. Azzera la Dashboard
-                                                viewModel.clearAllData()
-
-                                                // 4. Chiudi le finestre
-                                                Toast.makeText(context, "Account deleted", Toast.LENGTH_SHORT).show()
-                                                showDeleteConfirm = false
-                                                onDismiss()
+                                                    // 4. Chiudi le finestre
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Account deleted",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                    showDeleteConfirm = false
+                                                    onDismiss()
+                                                }
                                             }
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                                ) { Text("Delete") }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
-                            }
-                        )
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                    ) { Text("Delete") }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = {
+                                        showDeleteConfirm = false
+                                    }) { Text("Cancel") }
+                                }
+                            )
+                        }
                     }
 
                     TextButton(onClick = onDismiss) {

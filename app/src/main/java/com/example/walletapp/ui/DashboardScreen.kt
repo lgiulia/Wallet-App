@@ -147,7 +147,7 @@ fun DashboardScreen(
             ) {
                 Text(text = "Total Amount", fontSize = 14.sp, color = Color.Gray)
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(text = String.format("%s %.2f", currencySymbol, totalAmount), fontSize = 36.sp, fontWeight = FontWeight.Bold)
+                Text(text = String.format("%s %,.2f", currencySymbol, totalAmount), fontSize = 36.sp, fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -196,7 +196,7 @@ fun DashboardScreen(
                                 )
 
                                 Text(
-                                    text = String.format("%s %.2f", currencySymbol, currentBalance),
+                                    text = String.format("%s %,.2f", currencySymbol, currentBalance),
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 20.sp
                                 )
@@ -245,8 +245,8 @@ fun DashboardScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- SECTION 2: INCOME/OUTCOME LIST ---
-            Text(text = "Income/Outcome List", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            // --- SECTION 2: INCOME/EXPENSE LIST ---
+            Text(text = "Transaction History", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
 
             val visibleTransactions = transactions.filter { it.title != "Balance Adjustment" }
@@ -296,7 +296,7 @@ fun DashboardScreen(
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(
-                                        text = String.format(if (isExpense) "- %.2f %s" else "+ %.2f %s", transaction.amount, currencySymbol),
+                                        text = String.format(if (isExpense) "- %,.2f %s" else "+ %,.2f %s", transaction.amount, currencySymbol),
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 15.sp,
                                         color = if (isExpense) Color(0xFFD32F2F) else Color(0xFF388E3C)

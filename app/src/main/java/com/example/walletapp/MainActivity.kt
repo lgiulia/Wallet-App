@@ -38,14 +38,6 @@ class MainActivity : ComponentActivity() {
                 var showProfileDialog by remember { mutableStateOf(false) }
                 var showSettingsScreen by remember { mutableStateOf(false) }
 
-                // Se la variabile è true, disegna il popup in sovrimpressione
-                if (showProfileDialog) {
-                    AuthDialog(
-                        viewModel = viewModel,
-                        onDismiss = { showProfileDialog = false } // Permette di chiuderlo premendo fuori o su Cancel
-                    )
-                }
-
                 // Smistamento Pagine
                 if (showSettingsScreen) {
                     SettingsScreen(
@@ -53,6 +45,14 @@ class MainActivity : ComponentActivity() {
                         onBack = { showSettingsScreen = false },
                         onOpenAccountManagement = { showProfileDialog = true } // Apre il popup AuthDialog da Settings
                     )
+                    // Il popup delle impostazioni mostra il bottone delete account
+                    if (showProfileDialog) {
+                        AuthDialog(
+                            viewModel = viewModel,
+                            showDeleteOption = true,
+                            onDismiss = { showProfileDialog = false }
+                        )
+                    }
                 } else if (selectedAccountIdForDetail == null) {
                     DashboardScreen(
                         viewModel = viewModel,
@@ -62,6 +62,14 @@ class MainActivity : ComponentActivity() {
                         onNavigateToProfile = { showProfileDialog = true },
                         onNavigateToSettings = { showSettingsScreen = true } // Apre Settings
                     )
+                    // Popup della dashboard nasconde il bottone detele account
+                    if (showProfileDialog) {
+                        AuthDialog(
+                            viewModel = viewModel,
+                            showDeleteOption = false,
+                            onDismiss = { showProfileDialog = false }
+                        )
+                    }
                 } else {
                     AccountDetailScreen(
                         viewModel = viewModel,
