@@ -1,4 +1,4 @@
-# 👛 WalletApp
+# <img src="https://github.com/user-attachments/assets/3401bc0d-86e8-4ffc-b3dc-048a942ed63e" width="50" align="absmiddle"> WalletApp
 
 A modern, intuitive personal finance tracker built natively for Android. WalletApp helps you stay on top of your budget with real-time syncing, beautiful interactive charts, and multi-account management.
 
