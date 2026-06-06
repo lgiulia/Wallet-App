@@ -74,7 +74,7 @@ fun AuthDialog(viewModel: com.example.walletapp.viewmodel.FinanceViewModel,
                                     // Tenta il logout sul server
                                     SupabaseClient.client.auth.signOut()
                                 } catch (e: Exception) {
-                                    // Se il server dà errore (es. account già eliminato), lo ignoriamo!
+                                    // Se il server dà errore (es. account già eliminato), lo ignoriamo
                                 } finally {
                                     // IN OGNI CASO:
                                     // 1. Pialla la memoria fisica del telefono forzatamente
@@ -121,10 +121,10 @@ fun AuthDialog(viewModel: com.example.walletapp.viewmodel.FinanceViewModel,
                                                     // 1. Lancia la cancellazione a catena sul server
                                                     SupabaseClient.client.postgrest.rpc("delete_my_account")
                                                 } catch (e: Exception) {
-                                                    // Ignoriamo l'errore se l'account era già sparito
+                                                    // Ignora l'errore se l'account era già sparito
                                                 } finally {
                                                     // IN OGNI CASO:
-                                                    // 2. Distruggi la sessione locale senza chiedere permesso
+                                                    // 2. Distrugge la sessione locale senza chiedere permesso
                                                     try {
                                                         SupabaseClient.client.auth.clearSession()
                                                     } catch (e: Exception) {
@@ -133,7 +133,7 @@ fun AuthDialog(viewModel: com.example.walletapp.viewmodel.FinanceViewModel,
                                                     // 3. Azzera la Dashboard
                                                     viewModel.clearAllData()
 
-                                                    // 4. Chiudi le finestre
+                                                    // 4. Chiude le finestre
                                                     Toast.makeText(
                                                         context,
                                                         "Account deleted",

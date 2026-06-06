@@ -49,7 +49,6 @@ fun AccountDetailScreen(
     val appCurrency by viewModel.appCurrency.collectAsState()
     val appDateFormat by viewModel.appDateFormat.collectAsState()
 
-    // Estrapoliamo il simbolo e il pattern della data
     val currencySymbol = appCurrency.substringBefore(" ")
     val datePattern = if (appDateFormat == "MM/DD/YYYY") "MM/dd/yyyy" else "dd/MM/yyyy"
 
@@ -92,13 +91,13 @@ fun AccountDetailScreen(
     cal.add(Calendar.MONTH, -1)
     val prevMonthStart = cal.timeInMillis
 
-    // Calcoliamo il netto del mese corrente (Incomes - Expenses)
+    // Calcola il netto del mese corrente (Incomes - Expenses)
     val currentMonthNet = filteredTransactions.filter { it.date >= currentMonthStart && it.title != "Balance Adjustment" }.sumOf { tx ->
         val cat = categories.find { it.id == tx.categoryId }
         if (cat?.isExpense == true) -tx.amount else tx.amount
     }
 
-    // Calcoliamo il netto del mese scorso
+    // Calcola il netto del mese scorso
     val prevMonthNet = filteredTransactions.filter { it.date in prevMonthStart..<currentMonthStart && it.title != "Balance Adjustment" }.sumOf { tx ->
         val cat = categories.find { it.id == tx.categoryId }
         if (cat?.isExpense == true) -tx.amount else tx.amount
@@ -175,7 +174,7 @@ fun AccountDetailScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Passiamo le transazioni e la base iniziale al widget della linea
+            // Passa le transazioni e la base iniziale al widget della linea
             FinanceLineChart(transactions = filteredTransactions, categories = categories, initialBalance = initialBalanceScope)
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -472,7 +471,7 @@ fun FinanceLineChart(transactions: List<Transaction>, categories: List<Category>
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(180.dp), // Leggermente più alto per far respirare la curva
+            .height(180.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
     ) {
         if (graphData.size < 2) {
@@ -490,7 +489,7 @@ fun FinanceLineChart(transactions: List<Transaction>, categories: List<Category>
                 val maxVal = graphData.maxOrNull() ?: 0.0
                 val minVal = graphData.minOrNull() ?: 0.0
 
-                // Aggiungiamo un po' di "padding" matematico per non far toccare alla linea i bordi estremi
+                // "Padding" matematico per non far toccare alla linea i bordi estremi
                 val deltaY = if (maxVal == minVal) 1.0 else (maxVal - minVal) * 1.2
                 val yOffset = if (maxVal == minVal) 0.0 else (maxVal - minVal) * 0.1
 
@@ -500,14 +499,14 @@ fun FinanceLineChart(transactions: List<Transaction>, categories: List<Category>
                 val fillPath = Path()
                 val coordinates = mutableListOf<Offset>()
 
-                // 1. Calcoliamo tutte le coordinate X e Y
+                // 1. Calcola tutte le coordinate X e Y
                 graphData.forEachIndexed { index, balance ->
                     val x = index * spaceX
                     val y = size.height - (((balance - minVal + yOffset) / deltaY) * size.height).toFloat()
                     coordinates.add(Offset(x, y))
                 }
 
-                // 2. Disegniamo le curve fluide (Bézier)
+                // 2. Disegna le curve fluide (Bézier)
                 if (coordinates.isNotEmpty()) {
                     val firstPoint = coordinates.first()
                     strokePath.moveTo(firstPoint.x, firstPoint.y)
@@ -534,13 +533,13 @@ fun FinanceLineChart(transactions: List<Transaction>, categories: List<Category>
                         )
                     }
 
-                    // 3. Chiudiamo il tracciato per la sfumatura (gradient) sotto la linea
+                    // 3. Chiude il tracciato per la sfumatura sotto la linea
                     val lastPoint = coordinates.last()
                     fillPath.lineTo(lastPoint.x, size.height)
                     fillPath.lineTo(firstPoint.x, size.height)
                     fillPath.close()
 
-                    // Disegniamo la sfumatura
+                    // Disegna la sfumatura
                     drawPath(
                         path = fillPath,
                         brush = Brush.verticalGradient(
@@ -553,14 +552,14 @@ fun FinanceLineChart(transactions: List<Transaction>, categories: List<Category>
                         )
                     )
 
-                    // Disegniamo la linea solida curva
+                    // Disegna la linea solida curva
                     drawPath(
                         path = strokePath,
                         color = lineColor,
                         style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
                     )
 
-                    // 4. Disegniamo i classici puntini sopra la curva
+                    // 4. Disegna i classici puntini sopra la curva
                     coordinates.forEach { centerOffset ->
                         // Cerchio esterno del colore della linea
                         drawCircle(
@@ -568,9 +567,9 @@ fun FinanceLineChart(transactions: List<Transaction>, categories: List<Category>
                             radius = 5.dp.toPx(),
                             center = centerOffset
                         )
-                        // Cerchio interno per creare l'effetto "ciambellina" o punto forato
+                        // Cerchio interno
                         drawCircle(
-                            color = Color.White, // o il colore di sfondo della tua card
+                            color = Color.White,
                             radius = 2.5.dp.toPx(),
                             center = centerOffset
                         )

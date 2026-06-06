@@ -2,7 +2,6 @@ package com.example.walletapp.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.walletapp.SupabaseClient
 import com.example.walletapp.data.Account
@@ -21,7 +20,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.math.abs
 
-// --- CLASSI DTO PER L'INSERIMENTO SUL CLOUD (Senza campo ID) ---
+// --- CLASSI DTO PER L'INSERIMENTO SUL CLOUD ---
 @Serializable
 data class AccountInsert(
     val name: String,
@@ -75,24 +74,22 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     )
 
     init {
-        // Ascoltiamo in tempo reale lo stato dell'autenticazione di Supabase
+        // Ascolta in tempo reale lo stato dell'autenticazione di Supabase
         viewModelScope.launch {
             SupabaseClient.client.auth.sessionStatus.collect { status ->
                 when (status) {
                     is io.github.jan.supabase.gotrue.SessionStatus.Authenticated -> {
-                        // IL TOKEN È PRONTO! Ora siamo sicuri al 100% che RLS ci lascerà passare.
-                        // Scarichiamo i dati aggiornati dell'utente loggato.
+                        // Scarica i dati aggiornati dell'utente loggato.
                         fetchData()
                     }
                     is io.github.jan.supabase.gotrue.SessionStatus.NotAuthenticated -> {
-                        // Se l'utente non è loggato (o ha appena fatto Logout/Delete),
-                        // svuotiamo le liste locali per non mostrare dati residui.
+                        // Se l'utente non è loggato (o ha appena fatto Logout/Delete), svuota le liste locali per non mostrare dati residui.
                         _allAccounts.value = emptyList()
                         _allTransactions.value = emptyList()
                         _allCategories.value = emptyList()
                     }
                     else -> {
-                        // Stati di 'Loading' o 'NetworkError': aspettiamo che si stabilizzi
+                        // Stati di 'Loading' o 'NetworkError': aspettiamo
                     }
                 }
             }
@@ -126,7 +123,6 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     // --- GESTIONE CONTI ---
     fun createAccount(name: String, initialBalance: Double) {
         viewModelScope.launch {
-            // Usiamo il nostro DTO sicuro invece della mappa
             val newAccount = AccountInsert(name = name, initialBalance = initialBalance)
             db["accounts"].insert(newAccount)
             fetchData()

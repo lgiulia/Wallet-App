@@ -13,7 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -56,10 +55,10 @@ fun DashboardScreen(
     val appCurrency by viewModel.appCurrency.collectAsState()
     val appDateFormat by viewModel.appDateFormat.collectAsState()
 
-    // Estrapoliamo solo il simbolo (es. da "€ (Euro)" prendiamo solo "€")
+    // Estrapola solo il simbolo della valuta
     val currencySymbol = appCurrency.substringBefore(" ")
 
-    // Prepariamo il pattern per la data
+    // Prepara il pattern per la data
     val datePattern = if (appDateFormat == "MM/DD/YYYY") "MM/dd/yyyy" else "dd/MM/yyyy"
 
     var showTransactionDialog by remember { mutableStateOf(false) }
@@ -170,7 +169,7 @@ fun DashboardScreen(
                             .height(135.dp),
                         elevation = CardDefaults.cardElevation(2.dp)
                     ) {
-                        // Il Box ci permette di lavorare a livelli sovrapposti
+                        // Il Box permette di lavorare a livelli sovrapposti
                         Box(modifier = Modifier.fillMaxSize()) {
 
                             // LIVELLO 1 (SOTTO): L'area sensibile per il click/long-click della pagina
@@ -311,7 +310,7 @@ fun DashboardScreen(
         }
     }
 
-    // --- POPUPS & DIALOGS (Invariati per preservare le funzionalità) ---
+    // --- POPUPS & DIALOGS ---
     if (showAccountDialog) {
         var accountName by remember { mutableStateOf("") }
         var initBalanceStr by remember { mutableStateOf("") }
@@ -533,7 +532,7 @@ fun DashboardScreen(
     }
 }
 
-// --- COMPONENTE SPARKLINE: MINI GRAFICO A CURVA FLUIDA SENZA PUNTI ---
+// --- COMPONENTE SPARKLINE: MINI GRAFICO SENZA PUNTI ---
 @Composable
 fun AccountSparkline(transactions: List<Transaction>, categories: List<Category>, initialBalance: Double, modifier: Modifier = Modifier) {
     val sortedTx = transactions.filter { it.title != "Balance Adjustment" }.sortedBy { it.date }
@@ -552,12 +551,12 @@ fun AccountSparkline(transactions: List<Transaction>, categories: List<Category>
         balancePoints.add(currentRunningBalance)
     }
 
-    // Prendiamo gli ultimi 6 punti storici per mantenere la linea leggibile ma reattiva
+    // Prend3 gli ultimi 6 punti storici
     val graphData = balancePoints.takeLast(6)
     val lineColor = MaterialTheme.colorScheme.primary
 
     Canvas(modifier = modifier) {
-        // Disegnamo la curva solo se abbiamo almeno due punti distinti, altrimenti facciamo una linea piatta
+        // Disegna la curva solo se abbiamo almeno due punti distinti, altrimenti facciamo una linea piatta
         if (graphData.size >= 2) {
             val maxVal = graphData.maxOrNull() ?: 0.0
             val minVal = graphData.minOrNull() ?: 0.0
@@ -593,11 +592,11 @@ fun AccountSparkline(transactions: List<Transaction>, categories: List<Category>
 
             drawPath(
                 path = path,
-                color = lineColor.copy(alpha = 0.7f), // Un po' più opaco per integrarsi elegantemente
+                color = lineColor.copy(alpha = 0.7f),
                 style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
             )
         } else {
-            // Se il conto è appena nato o non ha transazioni, tracciamo una linea retta a metà altezza
+            // Se il conto è appena nato o non ha transazioni, traccia una linea retta a metà altezza
             val midY = size.height / 2f
             drawLine(
                 color = lineColor.copy(alpha = 0.3f),
