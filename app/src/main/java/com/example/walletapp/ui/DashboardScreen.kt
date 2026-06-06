@@ -1,5 +1,6 @@
 package com.example.walletapp.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
@@ -34,6 +35,10 @@ import com.example.walletapp.data.Transaction
 import com.example.walletapp.viewmodel.FinanceViewModel
 import java.text.SimpleDateFormat
 import java.util.*
+import io.github.jan.supabase.gotrue.SessionStatus
+import androidx.compose.ui.platform.LocalContext
+import com.example.walletapp.SupabaseClient
+import io.github.jan.supabase.gotrue.auth
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -80,6 +85,10 @@ fun DashboardScreen(
     }
 
     val totalAmount = accountBalances.values.sum()
+
+    val context = LocalContext.current
+    val sessionStatus by SupabaseClient.client.auth.sessionStatus.collectAsState()
+    val isLoggedIn = sessionStatus is SessionStatus.Authenticated
 
     Scaffold(
         floatingActionButton = {
@@ -208,7 +217,13 @@ fun DashboardScreen(
                 // Bottone Add Account
                 item {
                     OutlinedCard(
-                        onClick = { showAccountDialog = true },
+                        onClick = {
+                            if (isLoggedIn) {
+                                showAccountDialog = true
+                            } else {
+                                Toast.makeText(context, "You must be logged in to add an account", Toast.LENGTH_SHORT).show()
+                            }
+                        },
                         modifier = Modifier
                             .width(165.dp)
                             .height(135.dp),
