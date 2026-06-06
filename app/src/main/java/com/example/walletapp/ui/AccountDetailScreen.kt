@@ -40,7 +40,9 @@ fun AccountDetailScreen(
     accountId: Long?,
     onBack: () -> Unit
 ) {
-    val transactions by viewModel.allTransactions.collectAsState()
+
+    val rawTransactions by viewModel.allTransactions.collectAsState()
+    val transactions = rawTransactions.sortedByDescending { it.date }
     val categories by viewModel.allCategories.collectAsState()
     val accounts by viewModel.allAccounts.collectAsState()
 
@@ -465,7 +467,7 @@ fun FinanceLineChart(transactions: List<Transaction>, categories: List<Category>
         balancePoints.add(currentRunningBalance)
     }
 
-    val graphData = balancePoints.takeLast(6)
+    val graphData = balancePoints.takeLast(10)
 
     Card(
         modifier = Modifier

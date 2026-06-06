@@ -48,7 +48,8 @@ fun DashboardScreen(
     onNavigateToProfile: () -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
-    val transactions by viewModel.allTransactions.collectAsState()
+    val rawTransactions by viewModel.allTransactions.collectAsState()
+    val transactions = rawTransactions.sortedByDescending { it.date }
     val categories by viewModel.allCategories.collectAsState()
     val accounts by viewModel.allAccounts.collectAsState()
 
