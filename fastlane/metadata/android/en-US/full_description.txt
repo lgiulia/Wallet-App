@@ -1,0 +1,12 @@
+A modern, intuitive personal finance tracker built natively for Android. WalletApp helps you stay
+on top of your budget with real-time syncing, beautiful interactive charts, and multi-account management.
+
+KEY FEATURES
+
+* Multi-Account Dashboard: Track various accounts (Bank, Cash, Savings) in one unified interface.
+* Interactive Line Charts: Visualize your balance history over time with custom-built fluid Bezier curves.
+* Smart Categorization: Easily categorize incomes and expenses with color-coded visual tags.
+* Real-time Cloud Sync: Powered by Supabase, ensuring your data is always backed up and accessible.
+* Robust Security: Implements Row Level Security (RLS) so your financial data is strictly tied to
+your authenticated session.
+* Dynamic Theming: Full support for System Default, Light, and Dark modes.
