@@ -13,6 +13,7 @@ import com.example.walletapp.ui.DashboardScreen
 import com.example.walletapp.ui.SettingsScreen
 import com.example.walletapp.ui.theme.WalletAppTheme
 import com.example.walletapp.viewmodel.FinanceViewModel
+import androidx.activity.compose.BackHandler
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,6 +41,10 @@ class MainActivity : ComponentActivity() {
 
                 // Smistamento Pagine
                 if (showSettingsScreen) {
+                    // Tasto indietro
+                    BackHandler {
+                        showSettingsScreen = false
+                    }
                     SettingsScreen(
                         viewModel = viewModel,
                         onBack = { showSettingsScreen = false },
@@ -71,6 +76,10 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 } else {
+                    // Tasto indietro
+                    BackHandler {
+                        selectedAccountIdForDetail = null
+                    }
                     AccountDetailScreen(
                         viewModel = viewModel,
                         accountId = if (selectedAccountIdForDetail == -1L) null else selectedAccountIdForDetail,

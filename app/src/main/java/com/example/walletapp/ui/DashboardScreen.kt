@@ -48,7 +48,10 @@ fun DashboardScreen(
     onNavigateToSettings: () -> Unit
 ) {
     val rawTransactions by viewModel.allTransactions.collectAsState()
-    val transactions = rawTransactions.sortedByDescending { it.date }
+    val transactions = rawTransactions.sortedWith(
+        compareByDescending<Transaction> { it.date }
+            .thenByDescending { it.id } // In caso di pareggio guarda l'id maggiore (quello creato dopo)
+    )
     val categories by viewModel.allCategories.collectAsState()
     val accounts by viewModel.allAccounts.collectAsState()
 
