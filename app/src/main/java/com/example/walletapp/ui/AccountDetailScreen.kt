@@ -32,6 +32,12 @@ import com.example.walletapp.viewmodel.FinanceViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -113,6 +119,31 @@ fun AccountDetailScreen(
         ((currentMonthNet - prevMonthNet) / abs(prevMonthNet)) * 100
     }
 
+    // --- GESTIONE SCORRIMENTO PER IL BOTTONE FAB ---
+    val listState = rememberLazyListState()
+    var isFabVisible by remember { mutableStateOf(true) }
+    var previousIndex by remember { mutableIntStateOf(0) }
+    var previousScrollOffset by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) ->
+                if (index > previousIndex) {
+                    isFabVisible = false // Scorrimento verso il basso -> Nascondi
+                } else if (index < previousIndex) {
+                    isFabVisible = true  // Scorrimento verso l'alto -> Mostra
+                } else {
+                    if (offset > previousScrollOffset) {
+                        isFabVisible = false // Scorrimento lento in basso
+                    } else if (offset < previousScrollOffset) {
+                        isFabVisible = true  // Scorrimento lento in alto
+                    }
+                }
+                previousIndex = index
+                previousScrollOffset = offset
+            }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -125,7 +156,11 @@ fun AccountDetailScreen(
             )
         },
         floatingActionButton = {
-            if (accounts.isNotEmpty()) {
+            AnimatedVisibility(
+                visible = isFabVisible && accounts.isNotEmpty(),
+                enter = scaleIn(),
+                exit = scaleOut()
+            ) {
                 FloatingActionButton(
                     onClick = { showTransactionDialog = true },
                     shape = RoundedCornerShape(12.dp),
@@ -199,6 +234,7 @@ fun AccountDetailScreen(
                 }
             } else {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
