@@ -517,13 +517,30 @@ fun DashboardScreen(
                 Button(onClick = {
                     val amount = editAmountStr.replace(",", ".").toDoubleOrNull()
                     if (amount != null && editCategoryName.isNotBlank()) {
+
+                        // Si legge la data base inserita dall'utente dalla stringa
+                        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                        val parsedUserDate = sdf.parse(editDateStr) ?: Date(tx.date)
+                        // Si estrae l'orario esatto dalla transazione originale
+                        val oldTime = Calendar.getInstance().apply { timeInMillis = tx.date }
+                        // Si crea la nuova data con l'orario originale
+                        val finalCalendar = Calendar.getInstance().apply {
+                            time = parsedUserDate
+                            set(Calendar.HOUR_OF_DAY, oldTime.get(Calendar.HOUR_OF_DAY))
+                            set(Calendar.MINUTE, oldTime.get(Calendar.MINUTE))
+                            set(Calendar.SECOND, oldTime.get(Calendar.SECOND))
+                            set(Calendar.MILLISECOND, oldTime.get(Calendar.MILLISECOND))
+                        }
+                        // Risultato finale in millisecondi
+                        val newTimestamp = finalCalendar.timeInMillis
+
                         viewModel.updateExistingTransaction(
                             transaction = tx,
                             categoryName = editCategoryName,
                             newAmount = amount,
                             isExpense = editIsExpense,
                             newAccountId = editSelectedAccount.id,
-                            newDateString = editDateStr
+                            newDate = newTimestamp
                         )
                         showEditTransactionDialog = false
                         transactionToEdit = null

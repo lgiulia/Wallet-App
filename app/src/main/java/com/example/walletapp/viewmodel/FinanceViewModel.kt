@@ -166,7 +166,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         newAmount: Double,
         isExpense: Boolean,
         newAccountId: Long,
-        newDateString: String
+        newDate: Long
     ) {
         viewModelScope.launch {
             var category = _allCategories.value.find {
@@ -178,17 +178,10 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 category = db["categories"].insert(newCat) { select() }.decodeSingle<Category>()
             }
 
-            val sdf = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault())
-            val parsedDate = try {
-                sdf.parse(newDateString)?.time ?: transaction.date
-            } catch (e: Exception) {
-                transaction.date
-            }
-
             val updatedTx = TransactionInsert(
                 title = category.name,
                 amount = newAmount,
-                date = parsedDate,
+                date = newDate,
                 categoryId = category.id,
                 accountId = newAccountId
             )
