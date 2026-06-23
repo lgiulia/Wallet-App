@@ -38,6 +38,9 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.draw.blur
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -73,6 +76,11 @@ fun AccountDetailScreen(
     var showNewCategoryDialog by remember { mutableStateOf(false) }
 
     val currentAccount = accounts.find { it.id == accountId }
+
+    val hideTotalBalance by viewModel.hideTotalBalance.collectAsState()
+    val hiddenAccounts by viewModel.hiddenAccounts.collectAsState()
+
+    val isHidden = if (accountId == null) hideTotalBalance else (hideTotalBalance || hiddenAccounts.contains(accountId))
 
     val filteredTransactions = if (accountId == null) {
         transactions
@@ -188,24 +196,39 @@ fun AccountDetailScreen(
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(text = "Balance", fontSize = 16.sp, color = Color.Gray)
+
+                Spacer(modifier = Modifier.width(8.dp))
+
                 if (accountId != null) {
-                    IconButton(onClick = { showAdjustDialog = true }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Adjust Balance", modifier = Modifier.size(18.dp), tint = Color.Gray)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    // Pencil Icon
+                    IconButton(onClick = { showAdjustDialog = true }, modifier = Modifier.size(20.dp)) {
+                        Icon(Icons.Default.Edit, contentDescription = "Adjust Balance", tint = Color.Gray)
                     }
                 }
+                Spacer(modifier = Modifier.width(4.dp))
+                // Eye Icon
+                IconButton(
+                    onClick = {
+                        if (accountId == null) viewModel.toggleTotalBalanceVisibility()
+                        else viewModel.toggleAccountVisibility(accountId)
+                    },
+                    modifier = Modifier.size(20.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = "Toggle Visibility",
+                        tint = Color.Gray
+                    )
+                }
             }
-            Text(text = String.format("%s %,.2f", currencySymbol, specificBalance), fontSize = 32.sp, fontWeight = FontWeight.Bold)
 
-            // --- VISUALIZZAZIONE PERCENTUALE TREND ---
-            Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = String.format(Locale.getDefault(), "%+.1f%% month over month", trendPercentage),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (trendPercentage >= 0) Color(0xFF388E3C) else Color(0xFFD32F2F)
+                text = String.format("%s %,.2f", currencySymbol, specificBalance),
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = if (isHidden) Modifier.blur(12.dp) else Modifier
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
 
             // --- GRAFICO A LINEE ---
             Text(

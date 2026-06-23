@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
@@ -55,6 +56,41 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
 
     private val _allTransactions = MutableStateFlow<List<Transaction>>(emptyList())
     val allTransactions: StateFlow<List<Transaction>> = _allTransactions.asStateFlow()
+
+    // --- HIDE AMOUNTS ---
+    val hideTotalBalance: StateFlow<Boolean> = prefs.hideTotalBalanceFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false
+    )
+
+    val hiddenAccounts: StateFlow<Set<Long>> = prefs.hiddenAccountsFlow
+        .map { stringSet -> stringSet.mapNotNull { it.toLongOrNull() }.toSet() }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptySet()
+        )
+
+    fun toggleTotalBalanceVisibility() {
+        viewModelScope.launch {
+            prefs.saveHideTotalBalance(!hideTotalBalance.value)
+        }
+    }
+
+    fun toggleAccountVisibility(accountId: Long) {
+        viewModelScope.launch {
+            val currentSet = hiddenAccounts.value.toMutableSet()
+
+            if (currentSet.contains(accountId)) {
+                currentSet.remove(accountId)
+            } else {
+                currentSet.add(accountId)
+            }
+
+            prefs.saveHiddenAccounts(currentSet.map { it.toString() }.toSet())
+        }
+    }
 
     val appTheme: StateFlow<String> = prefs.themeFlow.stateIn(
         scope = viewModelScope,

@@ -44,6 +44,9 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.ui.draw.blur
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -108,6 +111,10 @@ fun DashboardScreen(
     var showNewCategoryDialog by remember { mutableStateOf(false) }
     var isExpense by remember { mutableStateOf(true) }
     var categoryName by remember { mutableStateOf("") }
+
+    // Hide amounts
+    val hideTotalBalance by viewModel.hideTotalBalance.collectAsState()
+    val hiddenAccounts by viewModel.hiddenAccounts.collectAsState()
 
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
@@ -186,9 +193,27 @@ fun DashboardScreen(
                     .clickable { onNavigateToDetail(null) },
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(text = "Total Amount", fontSize = 14.sp, color = Color.Gray)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "Total Amount", fontSize = 14.sp, color = Color.Gray)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    IconButton(
+                        onClick = { viewModel.toggleTotalBalanceVisibility() },
+                        modifier = Modifier.size(20.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (hideTotalBalance) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = "Toggle Global Visibility",
+                            tint = Color.Gray
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(text = String.format("%s %,.2f", currencySymbol, totalAmount), fontSize = 36.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = String.format("%s %,.2f", currencySymbol, totalAmount),
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = if (hideTotalBalance) Modifier.blur(12.dp) else Modifier
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -228,18 +253,37 @@ fun DashboardScreen(
                                     .padding(12.dp),
                                 verticalArrangement = Arrangement.SpaceBetween
                             ) {
-                                // Titolo spostato un po' a sinistra per non accavallarsi alla matita
-                                Text(
-                                    text = account.name,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 14.sp,
-                                    modifier = Modifier.padding(end = 24.dp)
-                                )
+                                val isAccountHidden = hideTotalBalance || hiddenAccounts.contains(account.id)
+
+                                // Account Name and Eye Icon
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = account.name,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 14.sp
+                                    )
+                                    IconButton(
+                                        onClick = { viewModel.toggleAccountVisibility(account.id) },
+                                        modifier = Modifier.size(20.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isAccountHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                            contentDescription = "Toggle Account Visibility",
+                                            tint = Color.Gray
+                                        )
+                                    }
+                                }
 
                                 Text(
                                     text = String.format("%s %,.2f", currencySymbol, currentBalance),
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 20.sp
+                                    fontSize = 20.sp,
+                                    // Sfocatura del singolo saldo se l'occhio è chiuso!
+                                    modifier = if (isAccountHidden) Modifier.blur(12.dp) else Modifier
                                 )
 
                                 AccountSparkline(
