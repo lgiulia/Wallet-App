@@ -139,13 +139,18 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     // --- GESTIONE TRANSAZIONI E CATEGORIE ---
     fun saveQuickTransaction(categoryName: String, amount: Double, isExpense: Boolean, accountId: Long) {
         viewModelScope.launch {
+            val trimmedName = categoryName.trim()
+
             var category = _allCategories.value.find {
-                it.name.trim().equals(categoryName.trim(), ignoreCase = true) && it.isExpense == isExpense
+                it.name.equals(trimmedName, ignoreCase = true) && it.isExpense == isExpense
             }
 
             if (category == null) {
-                val newCat = CategoryInsert(name = categoryName.trim(), isExpense = isExpense)
+                val newCat = CategoryInsert(name = trimmedName, isExpense = isExpense)
                 category = db["categories"].insert(newCat) { select() }.decodeSingle<Category>()
+
+                // Added locally
+                _allCategories.value = _allCategories.value + category
             }
 
             val newTx = TransactionInsert(
@@ -156,6 +161,8 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 accountId = accountId
             )
             db["transactions"].insert(newTx)
+
+            // Reload
             fetchData()
         }
     }
@@ -215,9 +222,22 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     // --- CATEGORIES ---
     fun addCategory(name: String, isExpense: Boolean) {
         viewModelScope.launch {
-            val newCat = CategoryInsert(name = name.trim(), isExpense = isExpense)
-            db["categories"].insert(newCat)
-            fetchData()
+            val trimmedName = name.trim()
+
+            // 1. Check if category already exist
+            val alreadyExists = _allCategories.value.any {
+                it.name.equals(trimmedName, ignoreCase = true) && it.isExpense == isExpense
+            }
+
+            if (!alreadyExists) {
+                val newCat = CategoryInsert(name = trimmedName, isExpense = isExpense)
+
+                // 2. Save on the database
+                val insertedCat = db["categories"].insert(newCat) { select() }.decodeSingle<Category>()
+
+                // 3. Update locally
+                _allCategories.value = _allCategories.value + insertedCat
+            }
         }
     }
 

@@ -105,6 +105,10 @@ fun DashboardScreen(
     var previousIndex by remember { mutableIntStateOf(0) }
     var previousScrollOffset by remember { mutableIntStateOf(0) }
 
+    var showNewCategoryDialog by remember { mutableStateOf(false) }
+    var isExpense by remember { mutableStateOf(true) }
+    var categoryName by remember { mutableStateOf("") }
+
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
             .collect { (index, offset) ->
@@ -377,9 +381,7 @@ fun DashboardScreen(
     }
 
     if (showTransactionDialog && accounts.isNotEmpty()) {
-        var categoryName by remember { mutableStateOf("") }
         var amountString by remember { mutableStateOf("") }
-        var isExpense by remember { mutableStateOf(true) }
         var expandedCategoryDropdown by remember { mutableStateOf(false) }
 
         var selectedAccount by remember { mutableStateOf(accounts.first()) }
@@ -414,19 +416,34 @@ fun DashboardScreen(
                     ExposedDropdownMenuBox(expanded = expandedCategoryDropdown, onExpandedChange = { expandedCategoryDropdown = !expandedCategoryDropdown }) {
                         OutlinedTextField(
                             value = categoryName,
-                            onValueChange = { categoryName = it; expandedCategoryDropdown = true },
+                            onValueChange = {}, // vuoto perchè non appare più la tastiera
+                            readOnly = true, // Blocca la tastiera
                             label = { Text("Category (e.g. Groceries)") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategoryDropdown) },
                             modifier = Modifier.menuAnchor().fillMaxWidth(),
                             singleLine = true
                         )
-                        val filteredCats = availableCategories.filter { it.name.contains(categoryName, ignoreCase = true) }
-                        if (filteredCats.isNotEmpty() && expandedCategoryDropdown) {
-                            ExposedDropdownMenu(expanded = expandedCategoryDropdown, onDismissRequest = { expandedCategoryDropdown = false }) {
-                                filteredCats.forEach { cat ->
-                                    DropdownMenuItem(text = { Text(cat.name) }, onClick = { categoryName = cat.name; expandedCategoryDropdown = false })
-                                }
+                        ExposedDropdownMenu(expanded = expandedCategoryDropdown, onDismissRequest = { expandedCategoryDropdown = false }) {
+                                // Mostra le categorie esistenti
+                            availableCategories.forEach { cat ->
+                                DropdownMenuItem(
+                                    text = { Text(cat.name) },
+                                    onClick = {
+                                        categoryName = cat.name;
+                                        expandedCategoryDropdown = false
+                                    }
+                                )
                             }
+                            // Linea di separazione
+                            if (availableCategories.isNotEmpty()) {
+                                HorizontalDivider()
+                            }
+                            // Bottone per aggiungere nuova categoria
+                            DropdownMenuItem(
+                                text = { Text("+ Add new category...", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) },
+                                onClick = { expandedCategoryDropdown = false
+                                showNewCategoryDialog = true }
+                            )
                         }
                     }
 
@@ -586,6 +603,37 @@ fun DashboardScreen(
             dismissButton = { TextButton(onClick = { showEditTransactionDialog = false; transactionToEdit = null }) { Text("Cancel") } }
         )
     }
+
+    // POPUP CREATE NEW CATEGORY
+    if (showNewCategoryDialog) {
+        var newCatName by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { showNewCategoryDialog = false },
+            title = { Text("New Category") },
+            text = {
+                OutlinedTextField(
+                    value = newCatName,
+                    onValueChange = { newCatName = it },
+                    label = { Text("Category Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (newCatName.isNotBlank()) {
+                        viewModel.addCategory(newCatName, isExpense)
+                        categoryName = newCatName
+                        showNewCategoryDialog = false
+                    }
+                }) { Text("Create") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNewCategoryDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
 }
 
 // --- COMPONENTE SPARKLINE: MINI GRAFICO SENZA PUNTI ---
@@ -607,7 +655,7 @@ fun AccountSparkline(transactions: List<Transaction>, categories: List<Category>
         balancePoints.add(currentRunningBalance)
     }
 
-    // Prend3 gli ultimi 6 punti storici
+    // Prende gli ultimi 6 punti storici
     val graphData = balancePoints.takeLast(6)
     val lineColor = MaterialTheme.colorScheme.primary
 

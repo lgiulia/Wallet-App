@@ -179,7 +179,7 @@ fun ManageCategoriesDialog(viewModel: FinanceViewModel, onDismiss: () -> Unit) {
 
                 // Lista delle categorie esistenti
                 LazyColumn(modifier = Modifier.weight(1f)) {
-                    items(categories.filter { it.name != "Balance Adjustment" }) { cat ->
+                    items(categories.filter { it.name != "Balance Adjustment" }, key = { cat -> cat.id }) { cat ->
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,

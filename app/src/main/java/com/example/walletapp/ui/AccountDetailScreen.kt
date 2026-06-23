@@ -68,6 +68,10 @@ fun AccountDetailScreen(
     var showEditTransactionDialog by remember { mutableStateOf(false) }
     var transactionToEdit by remember { mutableStateOf<Transaction?>(null) }
 
+    var categoryName by remember { mutableStateOf("") }
+    var isExpense by remember { mutableStateOf(true) }
+    var showNewCategoryDialog by remember { mutableStateOf(false) }
+
     val currentAccount = accounts.find { it.id == accountId }
 
     val filteredTransactions = if (accountId == null) {
@@ -289,9 +293,7 @@ fun AccountDetailScreen(
 
     // --- DIALOGS ---
     if (showTransactionDialog && accounts.isNotEmpty()) {
-        var categoryName by remember { mutableStateOf("") }
         var amountString by remember { mutableStateOf("") }
-        var isExpense by remember { mutableStateOf(true) }
         var expandedCategoryDropdown by remember { mutableStateOf(false) }
 
         var selectedAccount by remember { mutableStateOf(currentAccount ?: accounts.first()) }
@@ -326,19 +328,34 @@ fun AccountDetailScreen(
                     ExposedDropdownMenuBox(expanded = expandedCategoryDropdown, onExpandedChange = { expandedCategoryDropdown = !expandedCategoryDropdown }) {
                         OutlinedTextField(
                             value = categoryName,
-                            onValueChange = { categoryName = it; expandedCategoryDropdown = true },
+                            onValueChange = {}, // vuoto perchè non appare più la tastiera
+                            readOnly = true, // Blocca la tastiera
                             label = { Text("Category (e.g. Groceries)") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategoryDropdown) },
                             modifier = Modifier.menuAnchor().fillMaxWidth(),
                             singleLine = true
                         )
-                        val filteredCats = availableCategories.filter { it.name.contains(categoryName, ignoreCase = true) }
-                        if (filteredCats.isNotEmpty() && expandedCategoryDropdown) {
-                            ExposedDropdownMenu(expanded = expandedCategoryDropdown, onDismissRequest = { expandedCategoryDropdown = false }) {
-                                filteredCats.forEach { cat ->
-                                    DropdownMenuItem(text = { Text(cat.name) }, onClick = { categoryName = cat.name; expandedCategoryDropdown = false })
-                                }
+                        ExposedDropdownMenu(expanded = expandedCategoryDropdown, onDismissRequest = { expandedCategoryDropdown = false }) {
+                            // Mostra le categorie esistenti
+                            availableCategories.forEach { cat ->
+                                DropdownMenuItem(
+                                    text = { Text(cat.name) },
+                                    onClick = {
+                                        categoryName = cat.name;
+                                        expandedCategoryDropdown = false
+                                    }
+                                )
                             }
+                            // Linea di separazione
+                            if (availableCategories.isNotEmpty()) {
+                                HorizontalDivider()
+                            }
+                            // Bottone per aggiungere nuova categoria
+                            DropdownMenuItem(
+                                text = { Text("+ Add new category...", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) },
+                                onClick = { expandedCategoryDropdown = false
+                                    showNewCategoryDialog = true }
+                            )
                         }
                     }
 
@@ -499,6 +516,37 @@ fun AccountDetailScreen(
                 }) { Text("Update") }
             },
             dismissButton = { TextButton(onClick = { showEditTransactionDialog = false; transactionToEdit = null }) { Text("Cancel") } }
+        )
+    }
+
+    // POPUP CREATE NEW CATEGORY
+    if (showNewCategoryDialog) {
+        var newCatName by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { showNewCategoryDialog = false },
+            title = { Text("New Category") },
+            text = {
+                OutlinedTextField(
+                    value = newCatName,
+                    onValueChange = { newCatName = it },
+                    label = { Text("Category Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (newCatName.isNotBlank()) {
+                        viewModel.addCategory(newCatName, isExpense)
+                        categoryName = newCatName
+                        showNewCategoryDialog = false
+                    }
+                }) { Text("Create") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNewCategoryDialog = false }) { Text("Cancel") }
+            }
         )
     }
 }
