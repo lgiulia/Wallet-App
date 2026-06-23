@@ -249,6 +249,17 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun deleteCategory(category: Category) {
+        viewModelScope.launch {
+            // 1. Update screen
+            _allCategories.value = _allCategories.value.filter { it.id != category.id }
+            // 2. Delete category from database
+            db["categories"].delete { filter { eq("id", category.id) } }
+            // 3. Update datas
+            fetchData()
+        }
+    }
+
     // --- RESET MANUALE DATI ---
     fun clearAllData() {
         _allAccounts.value = emptyList()

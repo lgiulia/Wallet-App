@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.walletapp.data.Category
 import com.example.walletapp.viewmodel.FinanceViewModel
+import androidx.compose.material.icons.filled.Delete
 
 @Composable
 fun SettingsScreen(
@@ -172,6 +173,9 @@ fun ManageCategoriesDialog(viewModel: FinanceViewModel, onDismiss: () -> Unit) {
     var editName by remember { mutableStateOf("") }
     var editIsExpense by remember { mutableStateOf(true) }
 
+    var categoryToDelete by remember { mutableStateOf<Category?>(null) }
+    var showDeleteCategoryDialog by remember { mutableStateOf(false) }
+
     Dialog(onDismissRequest = onDismiss) {
         Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().fillMaxHeight(0.8f)) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -189,12 +193,24 @@ fun ManageCategoriesDialog(viewModel: FinanceViewModel, onDismiss: () -> Unit) {
                                 Text(if (cat.isExpense) "🔴 " else "🟢 ", fontSize = 12.sp)
                                 Text(cat.name, fontSize = 16.sp)
                             }
-                            IconButton(onClick = {
-                                categoryToEdit = cat
-                                editName = cat.name
-                                editIsExpense = cat.isExpense
-                            }, modifier = Modifier.size(24.dp)) {
-                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.Gray)
+                            // ICONS PENCIL AND TRASH
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = {
+                                    categoryToEdit = cat
+                                    editName = cat.name
+                                    editIsExpense = cat.isExpense
+                                }, modifier = Modifier.size(24.dp)) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.Gray)
+                                }
+
+                                Spacer(modifier = Modifier.width(16.dp))
+
+                                IconButton(onClick = {
+                                    categoryToDelete = cat
+                                    showDeleteCategoryDialog = true
+                                }, modifier = Modifier.size(24.dp)) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                                }
                             }
                         }
                         HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
@@ -247,6 +263,33 @@ fun ManageCategoriesDialog(viewModel: FinanceViewModel, onDismiss: () -> Unit) {
                 Spacer(modifier = Modifier.height(8.dp))
                 TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Close") }
             }
+        }
+
+        // --- POPUP: CONFIRM CATEGORY DELETE ---
+        if (showDeleteCategoryDialog && categoryToDelete != null) {
+            AlertDialog(
+                onDismissRequest = { showDeleteCategoryDialog = false; categoryToDelete = null },
+                title = { Text("Delete Category") },
+                text = { Text("Are you sure you want to delete \"${categoryToDelete?.name}\"?") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            categoryToDelete?.let { viewModel.deleteCategory(it) }
+                            showDeleteCategoryDialog = false
+                            categoryToDelete = null
+
+                            if (categoryToEdit?.id == categoryToDelete?.id) {
+                                categoryToEdit = null
+                                editName = ""
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) { Text("Delete") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteCategoryDialog = false; categoryToDelete = null }) { Text("Cancel") }
+                }
+            )
         }
     }
 }
