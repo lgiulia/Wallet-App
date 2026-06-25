@@ -110,9 +110,6 @@ fun SettingsScreen(
                 val defaultFileName = "WalletApp_Backup_${sdf.format(Date())}.csv"
                 exportLauncher.launch(defaultFileName)
             })
-
-            // Security
-            // SettingsMenuItem(title = "Security", onClick = { /* TODO: Implement App Lock */ })
         }
     }
 
