@@ -230,6 +230,17 @@ fun AccountDetailScreen(
                 modifier = if (isHidden) Modifier.blur(12.dp) else Modifier
             )
 
+            // --- VISUALIZZAZIONE PERCENTUALE TREND ---
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = String.format(Locale.getDefault(), "%+.1f%% month over month", trendPercentage),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (trendPercentage >= 0) Color(0xFF388E3C) else Color(0xFFD32F2F)
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             // --- GRAFICO A LINEE ---
             Text(
                 text = "Balance History Trend",
