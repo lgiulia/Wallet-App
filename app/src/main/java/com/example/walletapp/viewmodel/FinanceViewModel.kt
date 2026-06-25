@@ -302,4 +302,51 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         _allTransactions.value = emptyList()
         _allCategories.value = emptyList()
     }
+
+    // --- ESPORTAZIONE DATI (BACKUP CSV) ---
+    fun exportDataToCSV(uri: android.net.Uri, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val context = getApplication<Application>()
+                val resolver = context.contentResolver
+
+                val transactions = _allTransactions.value.sortedByDescending { it.date }
+                val categories = _allCategories.value
+                val accounts = _allAccounts.value
+
+                val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
+
+                // Contenuto del file CSV
+                val csvContent = buildString {
+                    // Intestazione delle colonne
+                    append("Date,Account,Category,Type,Amount,Title\n")
+
+                    transactions.forEach { tx ->
+                        val account = accounts.find { it.id == tx.accountId }?.name ?: "Unknown"
+                        val category = categories.find { it.id == tx.categoryId }
+                        val categoryName = category?.name ?: "Unknown"
+                        val type = if (category?.isExpense == true) "Expense" else "Income"
+                        val dateStr = sdf.format(java.util.Date(tx.date))
+
+                        // Pulire i testi da eventuali virgole
+                        val safeTitle = tx.title.replace(",", " ")
+                        val safeAccount = account.replace(",", " ")
+                        val safeCategoryName = categoryName.replace(",", " ")
+
+                        append("$dateStr,$safeAccount,$safeCategoryName,$type,${tx.amount},$safeTitle\n")
+                    }
+                }
+
+                // Write file in destination
+                resolver.openOutputStream(uri)?.use { outputStream ->
+                    outputStream.write(csvContent.toByteArray())
+                }
+
+                onResult(true)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onResult(false)
+            }
+        }
+    }
 }

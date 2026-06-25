@@ -21,6 +21,13 @@ import androidx.compose.ui.window.Dialog
 import com.example.walletapp.data.Category
 import com.example.walletapp.viewmodel.FinanceViewModel
 import androidx.compose.material.icons.filled.Delete
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun SettingsScreen(
@@ -33,6 +40,21 @@ fun SettingsScreen(
 
     var appearanceDropdownExpanded by remember { mutableStateOf(false) }
     val selectedTheme by viewModel.appTheme.collectAsState()
+
+    val context = LocalContext.current
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        uri?.let {
+            viewModel.exportDataToCSV(it) { success ->
+                if (success) {
+                    Toast.makeText(context, "Backup exported successfully!", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Error exporting backup.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -83,7 +105,11 @@ fun SettingsScreen(
             SettingsMenuItem(title = "Account Management", onClick = onOpenAccountManagement)
 
             // Data & Backup
-            // SettingsMenuItem(title = "Data & Backup", onClick = { /* TODO: Implement Export CSV */ })
+            SettingsMenuItem(title = "Data & Backup", onClick = {
+                val sdf = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+                val defaultFileName = "WalletApp_Backup_${sdf.format(Date())}.csv"
+                exportLauncher.launch(defaultFileName)
+            })
 
             // Security
             // SettingsMenuItem(title = "Security", onClick = { /* TODO: Implement App Lock */ })
