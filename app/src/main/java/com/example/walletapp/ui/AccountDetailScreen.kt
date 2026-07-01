@@ -35,12 +35,23 @@ import kotlin.math.abs
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.draw.blur
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.ui.draw.clip
+
+enum class TrendPeriod(val label: String) {
+    WEEK("last week"),
+    MONTH("last month"),
+    THREE_MONTHS("last 3 months"),
+    SIX_MONTHS("last 6 months"),
+    YEAR("last year")
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -75,6 +86,9 @@ fun AccountDetailScreen(
     var isExpense by remember { mutableStateOf(true) }
     var showNewCategoryDialog by remember { mutableStateOf(false) }
 
+    var selectedPeriod by remember { mutableStateOf(TrendPeriod.MONTH) }
+    var expandedPeriodDropdown by remember { mutableStateOf(false) }
+
     val currentAccount = accounts.find { it.id == accountId }
 
     val hideTotalBalance by viewModel.hideTotalBalance.collectAsState()
@@ -98,37 +112,70 @@ fun AccountDetailScreen(
         if (cat?.isExpense == true) -tx.amount else tx.amount
     }
 
-    // --- LOGICA DEL TREND PERCENTUALE (Month over Month) ---
+    // --- LOGICA DEL TREND PERCENTUALE DINAMICA ---
     val cal = Calendar.getInstance()
-
-    // Inizio del mese corrente
-    cal.set(Calendar.DAY_OF_MONTH, 1)
     cal.set(Calendar.HOUR_OF_DAY, 0)
     cal.set(Calendar.MINUTE, 0)
     cal.set(Calendar.SECOND, 0)
-    val currentMonthStart = cal.timeInMillis
+    cal.set(Calendar.MILLISECOND, 0)
 
-    // Inizio del mese scorso
-    cal.add(Calendar.MONTH, -1)
-    val prevMonthStart = cal.timeInMillis
+    val currentPeriodStart: Long
+    val prevPeriodStart: Long
 
-    // Calcola il netto del mese corrente (Incomes - Expenses)
-    val currentMonthNet = filteredTransactions.filter { it.date >= currentMonthStart && it.title != "Balance Adjustment" }.sumOf { tx ->
+    // Calcolo degli intervalli di tempo in base alla scelta dell'utente
+    when (selectedPeriod) {
+        TrendPeriod.WEEK -> {
+            cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+            currentPeriodStart = cal.timeInMillis
+            cal.add(Calendar.WEEK_OF_YEAR, -1)
+            prevPeriodStart = cal.timeInMillis
+        }
+        TrendPeriod.MONTH -> {
+            cal.set(Calendar.DAY_OF_MONTH, 1)
+            currentPeriodStart = cal.timeInMillis
+            cal.add(Calendar.MONTH, -1)
+            prevPeriodStart = cal.timeInMillis
+        }
+        TrendPeriod.THREE_MONTHS -> {
+            cal.set(Calendar.DAY_OF_MONTH, 1)
+            cal.add(Calendar.MONTH, -2) // Include questo mese + i 2 precedenti
+            currentPeriodStart = cal.timeInMillis
+            cal.add(Calendar.MONTH, -3) // I 3 mesi ancora precedenti
+            prevPeriodStart = cal.timeInMillis
+        }
+        TrendPeriod.SIX_MONTHS -> {
+            cal.set(Calendar.DAY_OF_MONTH, 1)
+            cal.add(Calendar.MONTH, -5)
+            currentPeriodStart = cal.timeInMillis
+            cal.add(Calendar.MONTH, -6)
+            prevPeriodStart = cal.timeInMillis
+        }
+        TrendPeriod.YEAR -> {
+            cal.set(Calendar.DAY_OF_MONTH, 1)
+            cal.add(Calendar.MONTH, -11)
+            currentPeriodStart = cal.timeInMillis
+            cal.add(Calendar.MONTH, -12)
+            prevPeriodStart = cal.timeInMillis
+        }
+    }
+
+    // Calcola il netto del periodo corrente (Incomes - Expenses)
+    val currentPeriodNet = filteredTransactions.filter { it.date >= currentPeriodStart && it.title != "Balance Adjustment" }.sumOf { tx ->
         val cat = categories.find { it.id == tx.categoryId }
         if (cat?.isExpense == true) -tx.amount else tx.amount
     }
 
-    // Calcola il netto del mese scorso
-    val prevMonthNet = filteredTransactions.filter { it.date in prevMonthStart..<currentMonthStart && it.title != "Balance Adjustment" }.sumOf { tx ->
+    // Calcola il netto del periodo precedente
+    val prevPeriodNet = filteredTransactions.filter { it.date in prevPeriodStart..<currentPeriodStart && it.title != "Balance Adjustment" }.sumOf { tx ->
         val cat = categories.find { it.id == tx.categoryId }
         if (cat?.isExpense == true) -tx.amount else tx.amount
     }
 
     // Formula per calcolare la variazione percentuale
-    val trendPercentage = if (prevMonthNet == 0.0) {
-        if (currentMonthNet == 0.0) 0.0 else 100.0
+    val trendPercentage = if (prevPeriodNet == 0.0) {
+        if (currentPeriodNet == 0.0) 0.0 else 100.0
     } else {
-        ((currentMonthNet - prevMonthNet) / abs(prevMonthNet)) * 100
+        ((currentPeriodNet - prevPeriodNet) / abs(prevPeriodNet)) * 100
     }
 
     // --- GESTIONE SCORRIMENTO PER IL BOTTONE FAB ---
@@ -230,14 +277,53 @@ fun AccountDetailScreen(
                 modifier = if (isHidden) Modifier.blur(12.dp) else Modifier
             )
 
-            // --- VISUALIZZAZIONE PERCENTUALE TREND ---
+            // --- VISUALIZZAZIONE PERCENTUALE TREND INLINE---
             Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = String.format(Locale.getDefault(), "%+.1f%% month over month", trendPercentage),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (trendPercentage >= 0) Color(0xFF388E3C) else Color(0xFFD32F2F)
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = String.format(Locale.getDefault(), "%+.1f%% compared to", trendPercentage),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (trendPercentage >= 0) Color(0xFF388E3C) else Color(0xFFD32F2F)
+                )
+                Box {
+                    Row(
+                        modifier = Modifier
+                            .clickable { expandedPeriodDropdown = true }
+                            .padding(vertical = 2.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = selectedPeriod.label,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = " ▾",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = expandedPeriodDropdown,
+                        onDismissRequest = { expandedPeriodDropdown = false }
+                    ) {
+                        TrendPeriod.values().forEach { period ->
+                            DropdownMenuItem(
+                                text = { Text(period.label) },
+                                onClick = {
+                                    selectedPeriod = period
+                                    expandedPeriodDropdown = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
