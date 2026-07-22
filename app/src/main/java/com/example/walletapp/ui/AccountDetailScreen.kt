@@ -122,6 +122,9 @@ fun AccountDetailScreen(
     val currentPeriodStart: Long
     val prevPeriodStart: Long
 
+    // Stato per modificare da percentuale a importo
+    var showTrendAsPercentage by remember { mutableStateOf(true) }
+
     // Calcolo degli intervalli di tempo in base alla scelta dell'utente
     when (selectedPeriod) {
         TrendPeriod.WEEK -> {
@@ -173,7 +176,9 @@ fun AccountDetailScreen(
 
     // Formula per calcolare la variazione percentuale
     val trendPercentage = if (prevPeriodNet == 0.0) {
-        if (currentPeriodNet == 0.0) 0.0 else 100.0
+        if (currentPeriodNet == 0.0) 0.0
+        else if (currentPeriodNet > 0) 100.0   // se non si hanno transazioni e ora si è guadagnato
+        else -100.0   // se non si hanno transazioni e ora si è speso
     } else {
         ((currentPeriodNet - prevPeriodNet) / abs(prevPeriodNet)) * 100
     }
@@ -277,21 +282,37 @@ fun AccountDetailScreen(
                 modifier = if (isHidden) Modifier.blur(12.dp) else Modifier
             )
 
-            // --- VISUALIZZAZIONE PERCENTUALE TREND INLINE---
+            // --- VISUALIZZAZIONE PERCENTUALE/IMPORTO TREND INLINE---
             Spacer(modifier = Modifier.height(2.dp))
+
+            // Calcolo della visualizzazione monetaria netta rispetto al periodo precedente
+            val trendDifference = currentPeriodNet - prevPeriodNet
+            val trendColor = if (trendDifference >= 0) Color(0xFF388E3C) else Color(0xFFD32F2F)
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
+                // Testo cliccabile che alterna tra % e €
                 Text(
-                    text = String.format(Locale.getDefault(), "%+.1f%% compared to", trendPercentage),
+                    text = if (showTrendAsPercentage) {
+                        String.format(Locale.getDefault(), "%+.1f%% compared to", trendPercentage)
+                    } else {
+                        String.format(Locale.getDefault(), "%+.2f %s compared to", trendDifference, currencySymbol)
+                    },
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color = if (trendPercentage >= 0) Color(0xFF388E3C) else Color(0xFFD32F2F)
+                    color = trendColor,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable { showTrendAsPercentage = !showTrendAsPercentage }
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
                 )
+
                 Box {
                     Row(
                         modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
                             .clickable { expandedPeriodDropdown = true }
                             .padding(vertical = 2.dp, horizontal = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
