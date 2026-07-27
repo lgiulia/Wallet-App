@@ -125,7 +125,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                         _allCategories.value = emptyList()
                     }
                     else -> {
-                        // Stati di 'Loading' o 'NetworkError': aspettiamo
+                        // Stati di 'Loading' o 'NetworkError'
                     }
                 }
             }
@@ -293,6 +293,54 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             db["categories"].delete { filter { eq("id", category.id) } }
             // 3. Update datas
             fetchData()
+        }
+    }
+
+    // TRASFERIMENTO TRA CONTI
+    fun saveTransferTransaction(fromAccount: Account, toAccount: Account, amount: Double) {
+        viewModelScope.launch {
+            try {
+                var outCategory = _allCategories.value.find { it.name  == "Transfer Out" && it.isExpense }
+                if (outCategory == null) {
+                    val newOutCat = CategoryInsert(name = "Transfer Out", isExpense = true)
+                    outCategory = db["categories"].insert(newOutCat) { select() }.decodeSingle<Category>()
+                    _allCategories.value = _allCategories.value + outCategory
+                }
+
+                var inCategory = _allCategories.value.find { it.name == "Transfer In" && !it.isExpense }
+                if (inCategory == null) {
+                    val newInCat = CategoryInsert(name = "Transfer In", isExpense = false)
+                    inCategory = db["categories"].insert(newInCat) { select() }.decodeSingle<Category>()
+                    _allCategories.value = _allCategories.value + inCategory
+                }
+
+                val transferTime = System.currentTimeMillis()
+
+                // Uscita dal conto di origine
+                val txOut = TransactionInsert(
+                    title = "To ${toAccount.name}",
+                    amount = amount,
+                    date = transferTime,
+                    categoryId = outCategory.id,
+                    accountId = fromAccount.id
+                )
+
+                // Entrata nel conto di destinazione
+                val txIn = TransactionInsert(
+                    title = "From ${fromAccount.name}",
+                    amount = amount,
+                    date = transferTime,
+                    categoryId = inCategory.id,
+                    accountId = toAccount.id
+                )
+
+                db["transactions"].insert(txOut)
+                db["transactions"].insert(txIn)
+
+                fetchData()
+            } catch (e:Exception) {
+                e.printStackTrace()
+            }
         }
     }
 

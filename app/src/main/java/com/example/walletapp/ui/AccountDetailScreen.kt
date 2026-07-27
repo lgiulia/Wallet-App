@@ -163,13 +163,19 @@ fun AccountDetailScreen(
     }
 
     // Calcola il netto del periodo corrente (Incomes - Expenses)
-    val currentPeriodNet = filteredTransactions.filter { it.date >= currentPeriodStart && it.title != "Balance Adjustment" }.sumOf { tx ->
+    val currentPeriodNet = filteredTransactions.filter { tx ->
+        val catName = categories.find { it.id == tx.categoryId }?.name ?: ""
+        tx.date >= currentPeriodStart && tx.title != "Balance Adjustment" && catName != "Transfer In" && catName != "Transfer Out"
+    }.sumOf { tx ->
         val cat = categories.find { it.id == tx.categoryId }
         if (cat?.isExpense == true) -tx.amount else tx.amount
     }
 
     // Calcola il netto del periodo precedente
-    val prevPeriodNet = filteredTransactions.filter { it.date in prevPeriodStart..<currentPeriodStart && it.title != "Balance Adjustment" }.sumOf { tx ->
+    val prevPeriodNet = filteredTransactions.filter { tx ->
+        val catName = categories.find { it.id == tx.categoryId }?.name ?: ""
+        tx.date in prevPeriodStart..<currentPeriodStart && tx.title != "Balance Adjustment" && catName != "Transfer In" && catName != "Transfer Out"
+    }.sumOf { tx ->
         val cat = categories.find { it.id == tx.categoryId }
         if (cat?.isExpense == true) -tx.amount else tx.amount
     }
@@ -440,63 +446,98 @@ fun AccountDetailScreen(
         var selectedAccount by remember { mutableStateOf(currentAccount ?: accounts.first()) }
         var expandedDropdown by remember { mutableStateOf(false) }
 
+        var transactionMode by remember { mutableStateOf("EXPENSE") } // "EXPENSE", "INCOME", "TRANSFER"
+        var selectedToAccount by remember { mutableStateOf(accounts.firstOrNull { it.id != selectedAccount.id } ?: accounts.first()) }
+        var expandedToDropdown by remember { mutableStateOf(false) }
+
         AlertDialog(
             onDismissRequest = { showTransactionDialog = false },
             title = { Text("New Transaction") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Selezione Conto
-                    ExposedDropdownMenuBox(expanded = expandedDropdown, onExpandedChange = { expandedDropdown = !expandedDropdown }) {
-                        OutlinedTextField(
-                            value = selectedAccount.name, onValueChange = {}, readOnly = true, label = { Text("Select Account") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDropdown) }, modifier = Modifier.menuAnchor().fillMaxWidth()
+                    // SELETTORE A 3 VIE
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        FilterChip (
+                            selected = transactionMode == "EXPENSE",
+                            onClick = { transactionMode = "EXPENSE"; isExpense = true },
+                            label = { Text("Expense") }
                         )
-                        ExposedDropdownMenu(expanded = expandedDropdown, onDismissRequest = { expandedDropdown = false }) {
-                            accounts.forEach { account ->
-                                DropdownMenuItem(text = { Text(account.name) }, onClick = { selectedAccount = account; expandedDropdown = false })
-                            }
+                        FilterChip (
+                            selected = transactionMode == "INCOME",
+                            onClick = { transactionMode = "INCOME"; isExpense = false },
+                            label = { Text("Income") }
+                        )
+                        if (accounts.size > 1) {
+                            FilterChip(
+                                selected = transactionMode == "TRANSFER",
+                                onClick = { transactionMode = "TRANSFER" },
+                                label = { Text("Transfer") }
+                            )
                         }
                     }
 
-                    // Entrata o Uscita (Lo mettiamo prima così filtra le categorie sotto)
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                        Text(text = if (isExpense) "🔴 Expense" else "🟢 Income", fontWeight = FontWeight.Medium)
-                        Switch(checked = isExpense, onCheckedChange = { isExpense = it; categoryName = "" }) // Resetta il nome se cambi tipo
-                    }
+                    // FROM ACCOUNT
+                    OutlinedTextField(
+                        value = selectedAccount.name,
+                        onValueChange = {},
+                        readOnly = true,
+                        label= { Text(if (transactionMode == "TRANSFER") "From Account" else "Account") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
-                    // Selezione o Scrittura Categoria
-                    val availableCategories = categories.filter { it.isExpense == isExpense && it.name != "Balance Adjustment" }
-                    ExposedDropdownMenuBox(expanded = expandedCategoryDropdown, onExpandedChange = { expandedCategoryDropdown = !expandedCategoryDropdown }) {
-                        OutlinedTextField(
-                            value = categoryName,
-                            onValueChange = {}, // vuoto perchè non appare più la tastiera
-                            readOnly = true, // Blocca la tastiera
-                            label = { Text("Category (e.g. Groceries)") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategoryDropdown) },
-                            modifier = Modifier.menuAnchor().fillMaxWidth(),
-                            singleLine = true
-                        )
-                        ExposedDropdownMenu(expanded = expandedCategoryDropdown, onDismissRequest = { expandedCategoryDropdown = false }) {
-                            // Mostra le categorie esistenti
-                            availableCategories.forEach { cat ->
+                    // Logica dinamica dei campi centrali
+                    if (transactionMode == "TRANSFER") {
+                        // Mostra il selettore del conto di destinazione
+                        ExposedDropdownMenuBox(expanded = expandedToDropdown, onExpandedChange = { expandedToDropdown = !expandedToDropdown }) {
+                            OutlinedTextField(
+                                value = selectedToAccount.name, onValueChange = {}, readOnly = true, label = { Text("To Account") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedToDropdown) }, modifier = Modifier.menuAnchor().fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(expanded = expandedToDropdown, onDismissRequest = { expandedToDropdown = false }) {
+                                // Filtro per togliere lo stesso conto di partenza
+                                accounts.filter { it.id != selectedAccount.id }.forEach { account ->
+                                    DropdownMenuItem(text = { Text(account.name) }, onClick = { selectedToAccount = account; expandedToDropdown = false })
+                                }
+                            }
+                        }
+                    } else {
+                        // Selezione o Scrittura Categoria
+                        val availableCategories = categories.filter { it.isExpense == (transactionMode == "EXPENSE") && it.name != "Balance Adjustment" && it.name != "Transfer In" && it.name != "Transfer Out" }
+                        ExposedDropdownMenuBox(expanded = expandedCategoryDropdown, onExpandedChange = { expandedCategoryDropdown = !expandedCategoryDropdown }) {
+                            OutlinedTextField(
+                                value = categoryName,
+                                onValueChange = {}, // vuoto perchè non appare più la tastiera
+                                readOnly = true, // Blocca la tastiera
+                                label = { Text("Category (e.g. Groceries)") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategoryDropdown) },
+                                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                singleLine = true
+                            )
+                            ExposedDropdownMenu(expanded = expandedCategoryDropdown, onDismissRequest = { expandedCategoryDropdown = false }) {
+                                // Mostra le categorie esistenti
+                                availableCategories.forEach { cat ->
+                                    DropdownMenuItem(
+                                        text = { Text(cat.name) },
+                                        onClick = {
+                                            categoryName = cat.name;
+                                            expandedCategoryDropdown = false
+                                        }
+                                    )
+                                }
+                                // Linea di separazione
+                                if (availableCategories.isNotEmpty()) {
+                                    HorizontalDivider()
+                                }
+                                // Bottone per aggiungere nuova categoria
                                 DropdownMenuItem(
-                                    text = { Text(cat.name) },
-                                    onClick = {
-                                        categoryName = cat.name;
-                                        expandedCategoryDropdown = false
-                                    }
+                                    text = { Text("+ Add new category...", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) },
+                                    onClick = { expandedCategoryDropdown = false
+                                        showNewCategoryDialog = true }
                                 )
                             }
-                            // Linea di separazione
-                            if (availableCategories.isNotEmpty()) {
-                                HorizontalDivider()
-                            }
-                            // Bottone per aggiungere nuova categoria
-                            DropdownMenuItem(
-                                text = { Text("+ Add new category...", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold) },
-                                onClick = { expandedCategoryDropdown = false
-                                    showNewCategoryDialog = true }
-                            )
                         }
                     }
 
@@ -507,9 +548,14 @@ fun AccountDetailScreen(
             confirmButton = {
                 Button(onClick = {
                     val amount = amountString.replace(",", ".").toDoubleOrNull()
-                    if (amount != null && categoryName.isNotBlank()) {
-                        viewModel.saveQuickTransaction(categoryName, amount, isExpense, selectedAccount.id)
-                        showTransactionDialog = false
+                    if (amount != null) {
+                        if (transactionMode == "TRANSFER") {
+                            viewModel.saveTransferTransaction(selectedAccount, selectedToAccount, amount)
+                            showTransactionDialog = false
+                        } else if (categoryName.isNotBlank()) {
+                            viewModel.saveQuickTransaction(categoryName, amount, transactionMode == "EXPENSE", selectedAccount.id)
+                            showTransactionDialog = false
+                        }
                     }
                 }) { Text("Save") }
             },
