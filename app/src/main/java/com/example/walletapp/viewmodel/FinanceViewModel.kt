@@ -97,6 +97,16 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = "System Default"
     )
+
+    val appColorPalette: StateFlow<String> = prefs.colorPaletteFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = "Dynamic"
+    )
+
+    fun setAppColorPalette(palette: String) {
+        viewModelScope.launch { prefs.saveColorPalette(palette) }
+    }
     val appCurrency: StateFlow<String> = prefs.currencyFlow.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),

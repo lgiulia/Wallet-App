@@ -26,6 +26,9 @@ class MainActivity : ComponentActivity() {
             // Legge il tema scelto in tempo reale
             val currentTheme by viewModel.appTheme.collectAsState()
 
+            // Variabile dei colori
+            val currentColorPalette by viewModel.appColorPalette.collectAsState()
+
             // Calcola se si deve forzare il Dark Mode, il Light Mode, o seguire il sistema
             val isDarkTheme = when (currentTheme) {
                 "Dark" -> true
@@ -34,7 +37,7 @@ class MainActivity : ComponentActivity() {
             }
 
             // Passa il valore calcolato al tema
-            WalletAppTheme(darkTheme = isDarkTheme) {
+            WalletAppTheme(darkTheme = isDarkTheme, colorPalette = currentColorPalette) {
                 var selectedAccountIdForDetail by remember { mutableStateOf<Long?>(null) }
                 var showProfileDialog by remember { mutableStateOf(false) }
                 var showSettingsScreen by remember { mutableStateOf(false) }

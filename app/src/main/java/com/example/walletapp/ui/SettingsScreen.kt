@@ -11,7 +11,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.ui.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -24,10 +24,22 @@ import androidx.compose.material.icons.filled.Delete
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.foundation.background
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.border
 
 @Composable
 fun SettingsScreen(
@@ -40,6 +52,9 @@ fun SettingsScreen(
 
     var appearanceDropdownExpanded by remember { mutableStateOf(false) }
     val selectedTheme by viewModel.appTheme.collectAsState()
+
+    var colorPaletteDropdownExpanded by remember { mutableStateOf(false) }
+    val selectedColorPalette by viewModel.appColorPalette.collectAsState()
 
     val context = LocalContext.current
     val exportLauncher = rememberLauncherForActivityResult(
@@ -78,7 +93,7 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Appearance", fontSize = 18.sp)
+                Text("Theme Mode", fontSize = 18.sp)
                 Box {
                     TextButton(onClick = { appearanceDropdownExpanded = true }) {
                         Text(selectedTheme)
@@ -90,6 +105,48 @@ fun SettingsScreen(
                         DropdownMenuItem(text = { Text("Light") }, onClick = { viewModel.setAppTheme("Light"); appearanceDropdownExpanded = false })
                         DropdownMenuItem(text = { Text("Dark") }, onClick = { viewModel.setAppTheme("Dark"); appearanceDropdownExpanded = false })
                         DropdownMenuItem(text = { Text("System Default") }, onClick = { viewModel.setAppTheme("System Default"); appearanceDropdownExpanded = false })
+                    }
+                }
+            }
+            HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
+
+            // Color Palette
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Color Palette", fontSize = 18.sp, modifier = Modifier.padding( end = 16.dp))
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.End
+                ){
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    val palettes = listOf("Dynamic", "Blue", "Green", "Purple")
+                    palettes.forEach { palette ->
+                        val isSelected = selectedColorPalette == palette
+
+                        Box(
+                            modifier = Modifier
+                                .padding(start = 12.dp)
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .clickable { viewModel.setAppColorPalette(palette) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            ColorPaletteIndicator(palette)
+
+                            if (isSelected) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -314,5 +371,34 @@ fun ManageCategoriesDialog(viewModel: FinanceViewModel, onDismiss: () -> Unit) {
                 }
             )
         }
+    }
+}
+
+@Composable
+fun ColorPaletteIndicator(palette: String) {
+    if (palette == "Dynamic") {
+        // Cerchio con sfumatura arcobaleno
+        val dynamicBrush = Brush.sweepGradient(
+            listOf(Color.Red, Color.Yellow, Color.Green, Color.Blue, Color.Magenta, Color.Red)
+        )
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(dynamicBrush)
+        )
+    } else {
+        val color = when (palette) {
+            "Blue" -> Color(0xFF1976D2)
+            "Green" -> Color(0xFF388E3C)
+            "Purple" -> Color(0xFF6650a4)
+            else -> Color.Gray
+        }
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(color)
+        )
     }
 }

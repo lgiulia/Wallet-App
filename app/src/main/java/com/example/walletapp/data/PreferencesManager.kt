@@ -18,6 +18,7 @@ class PreferencesManager(context: Context) {
     // Le "chiavi" con cui si salvano
     companion object {
         val THEME_KEY = stringPreferencesKey("app_theme")
+        val COLOR_PALETTE_KEY = stringPreferencesKey("app_color_palette")
         val CURRENCY_KEY = stringPreferencesKey("app_currency")
         val DATE_FORMAT_KEY = stringPreferencesKey("app_date_format")
         val HIDE_TOTAL_BALANCE = booleanPreferencesKey("hide_total_balance")
@@ -26,6 +27,7 @@ class PreferencesManager(context: Context) {
 
     // Flussi che leggono continuamente i dati salvati (o i valori di default se è la prima volta)
     val themeFlow: Flow<String> = dataStore.data.map { it[THEME_KEY] ?: "System Default" }
+    val colorPaletteFlow: Flow<String> = dataStore.data.map { it[COLOR_PALETTE_KEY] ?: "Dynamic" }
     val currencyFlow: Flow<String> = dataStore.data.map { it[CURRENCY_KEY] ?: "€ (Euro)" }
     val dateFormatFlow: Flow<String> = dataStore.data.map { it[DATE_FORMAT_KEY] ?: "DD/MM/YYYY" }
     val hideTotalBalanceFlow: Flow<Boolean> = dataStore.data.map { preferences ->
@@ -37,6 +39,7 @@ class PreferencesManager(context: Context) {
 
     // Funzioni per scrivere e sovrascrivere i dati
     suspend fun saveTheme(theme: String) { dataStore.edit { it[THEME_KEY] = theme } }
+    suspend fun saveColorPalette(palette: String) { dataStore.edit { it[COLOR_PALETTE_KEY] = palette } }
     suspend fun saveCurrency(currency: String) { dataStore.edit { it[CURRENCY_KEY] = currency } }
     suspend fun saveDateFormat(format: String) { dataStore.edit { it[DATE_FORMAT_KEY] = format } }
 
