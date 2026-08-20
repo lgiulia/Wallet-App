@@ -162,19 +162,30 @@ fun AccountDetailScreen(
         }
     }
 
+    // Include transfer in trend
+    val includeTransfers by viewModel.includeTransfersInTrend.collectAsState()
+
+    val transactionsToCalculate = if (includeTransfers) {
+        // user wants transfers in trend then use all transactions
+        filteredTransactions
+    } else {
+        filteredTransactions.filter { tx ->
+            val cat = categories.find { it.id == tx.categoryId }
+            cat?.name != "Transfer In" && cat?.name != "Transfer Out"
+        }
+    }
+
     // Calcola il netto del periodo corrente (Incomes - Expenses)
-    val currentPeriodNet = filteredTransactions.filter { tx ->
-        val catName = categories.find { it.id == tx.categoryId }?.name ?: ""
-        tx.date >= currentPeriodStart && tx.title != "Balance Adjustment" && catName != "Transfer In" && catName != "Transfer Out"
+    val currentPeriodNet = transactionsToCalculate.filter { tx ->
+        tx.date >= currentPeriodStart && tx.title != "Balance Adjustment"
     }.sumOf { tx ->
         val cat = categories.find { it.id == tx.categoryId }
         if (cat?.isExpense == true) -tx.amount else tx.amount
     }
 
     // Calcola il netto del periodo precedente
-    val prevPeriodNet = filteredTransactions.filter { tx ->
-        val catName = categories.find { it.id == tx.categoryId }?.name ?: ""
-        tx.date in prevPeriodStart..<currentPeriodStart && tx.title != "Balance Adjustment" && catName != "Transfer In" && catName != "Transfer Out"
+    val prevPeriodNet = transactionsToCalculate.filter { tx ->
+        tx.date in prevPeriodStart..<currentPeriodStart && tx.title != "Balance Adjustment"
     }.sumOf { tx ->
         val cat = categories.find { it.id == tx.categoryId }
         if (cat?.isExpense == true) -tx.amount else tx.amount

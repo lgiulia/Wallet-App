@@ -23,6 +23,7 @@ class PreferencesManager(context: Context) {
         val DATE_FORMAT_KEY = stringPreferencesKey("app_date_format")
         val HIDE_TOTAL_BALANCE = booleanPreferencesKey("hide_total_balance")
         val HIDDEN_ACCOUNTS = stringSetPreferencesKey("hidden_accounts")
+        private val INCLUDE_TRANSFERS_KEY = booleanPreferencesKey("include_transfers")
     }
 
     // Flussi che leggono continuamente i dati salvati (o i valori di default se è la prima volta)
@@ -35,6 +36,10 @@ class PreferencesManager(context: Context) {
     }
     val hiddenAccountsFlow: Flow<Set<String>> = dataStore.data.map { preferences ->
         preferences[HIDDEN_ACCOUNTS] ?: emptySet() // Default: no account is hidden
+    }
+
+    val includeTransfersFlow: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[INCLUDE_TRANSFERS_KEY] ?: false
     }
 
     // Funzioni per scrivere e sovrascrivere i dati
@@ -52,6 +57,12 @@ class PreferencesManager(context: Context) {
     suspend fun saveHiddenAccounts(accounts: Set<String>) {
         dataStore.edit { preferences ->
             preferences[HIDDEN_ACCOUNTS] = accounts
+        }
+    }
+
+    suspend fun saveIncludeTransfers(include: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[INCLUDE_TRANSFERS_KEY] = include
         }
     }
 }

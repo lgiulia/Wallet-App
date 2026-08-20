@@ -119,6 +119,16 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         initialValue = "DD/MM/YYYY"
     )
 
+    val includeTransfersInTrend: StateFlow<Boolean> = prefs.includeTransfersFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false
+    )
+
+    fun setIncludeTransfersInTrend(include: Boolean) {
+        viewModelScope.launch { prefs.saveIncludeTransfers(include) }
+    }
+
     init {
         // Ascolta in tempo reale lo stato dell'autenticazione di Supabase
         viewModelScope.launch {

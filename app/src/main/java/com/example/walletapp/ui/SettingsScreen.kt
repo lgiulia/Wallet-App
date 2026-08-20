@@ -25,7 +25,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.Alignment
+import androidx.compose.ui.*
 import androidx.compose.ui.platform.LocalContext
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.border
+import androidx.compose.ui.Alignment
 
 @Composable
 fun SettingsScreen(
@@ -87,7 +88,7 @@ fun SettingsScreen(
                 Text("Settings", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 8.dp))
             }
 
-            // Appearance
+            // Theme Mode
             Row(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -205,6 +206,8 @@ fun PreferencesDialog(viewModel: FinanceViewModel, onDismiss: () -> Unit) {
     val dateFormat by viewModel.appDateFormat.collectAsState()
     var dateExpanded by remember { mutableStateOf(false) }
 
+    val includeTransfers by viewModel.includeTransfersInTrend.collectAsState(initial = false)
+
     Dialog(onDismissRequest = onDismiss) {
         Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -237,6 +240,30 @@ fun PreferencesDialog(viewModel: FinanceViewModel, onDismiss: () -> Unit) {
                             DropdownMenuItem(text = { Text(it) }, onClick = { viewModel.setAppDateFormat(it); dateExpanded = false })
                         }
                     }
+                }
+
+                // Toggle Transfer in Trend
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Include transfers in trend", fontSize = 16.sp)
+                        Text(
+                            text = "If enabled, transfers between accounts will affect the net flow.",
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                            lineHeight = 16.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Switch(
+                        checked = includeTransfers,
+                        onCheckedChange = { isChecked ->
+                            viewModel.setIncludeTransfersInTrend(isChecked)
+                        }
+                    )
                 }
 
                 TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text("Save & Close") }
